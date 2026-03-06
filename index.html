@@ -4,13 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>MacroScan</title>
-
 <meta name="theme-color" content="#0d1117">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="MacroScan">
-<link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="manifest" href="site.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-512.png">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -166,36 +165,36 @@
   .hist-empty { text-align: center; color: #4a5568; font-size: 14px; padding: 40px 20px; }
 
 
-  /* ── Weekly Charts ── */
+  /* ── Weekly Graphs ── */
   .chart-card { background: linear-gradient(135deg,#1a1f2e,#131824); border-radius: 16px; padding: 18px; border: 1px solid #1e2535; }
-  .chart-header { display:flex; justify-content:space-between; align-items:flex-end; gap:10px; margin-bottom:14px; }
+  .chart-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
   .chart-title { font-size:16px; font-weight:700; }
-  .chart-sub { font-size:11px; color:#6b7a99; margin-top:4px; }
-  .chart-legend { display:flex; gap:10px; flex-wrap:wrap; }
-  .legend-item { display:flex; align-items:center; gap:6px; font-size:11px; color:#8891a8; }
-  .legend-dot { width:10px; height:10px; border-radius:999px; display:inline-block; }
-  .week-bars { display:grid; grid-template-columns:repeat(7,1fr); gap:10px; align-items:end; height:180px; margin-top:6px; }
-  .week-day { display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:8px; height:100%; }
-  .week-bar-stack { height:130px; width:100%; max-width:34px; background:#111827; border:1px solid #1e2535; border-radius:12px; overflow:hidden; display:flex; flex-direction:column; justify-content:flex-end; }
-  .week-bar-fill { width:100%; min-height:0; }
-  .week-day-label { font-size:10px; color:#6b7a99; text-transform:uppercase; }
-  .week-day-total { font-size:11px; font-weight:700; color:#e2e8f0; }
-  .week-summary-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:16px; }
-  .week-summary-cell { background:#111827; border-radius:10px; padding:10px 8px; text-align:center; }
-  .week-summary-label { font-size:10px; color:#6b7a99; text-transform:uppercase; }
-  .week-summary-val { font-size:14px; font-weight:700; margin-top:4px; }
-  /* ── Scanner ── */
-  .scanner-modal { position:fixed; inset:0; background:rgba(5,8,12,0.9); z-index:300; display:flex; align-items:center; justify-content:center; padding:18px; }
-  .scanner-card { width:100%; max-width:480px; background:linear-gradient(135deg,#151b29,#0f1420); border:1px solid #263248; border-radius:18px; overflow:hidden; }
-  .scanner-top { padding:16px 18px 10px; display:flex; justify-content:space-between; align-items:center; }
-  .scanner-title { font-size:16px; font-weight:700; }
-  .scanner-sub { font-size:12px; color:#6b7a99; margin-top:4px; }
-  .scanner-frame { position:relative; background:#02050a; aspect-ratio:3/4; display:flex; align-items:center; justify-content:center; overflow:hidden; }
-  #scannerVideo { width:100%; height:100%; object-fit:cover; }
-  .scanner-guide { position:absolute; width:78%; height:110px; border:2px solid rgba(58,134,255,0.95); border-radius:16px; box-shadow:0 0 0 9999px rgba(0,0,0,0.28); }
-  .scanner-guide::after { content:''; position:absolute; left:8%; right:8%; top:50%; height:2px; background:linear-gradient(90deg,transparent,#00d2ff,transparent); animation:scanline 1.8s linear infinite; }
-  .scanner-status { padding:12px 18px 0; font-size:12px; color:#8891a8; }
-  .scanner-actions { padding:16px 18px 18px; display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .chart-sub { font-size:11px; color:#6b7a99; }
+  .chart-grid { display:grid; grid-template-columns:1fr; gap:12px; }
+  .mini-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:12px; }
+  .mini-stat { background:#111827; border-radius:10px; padding:10px; text-align:center; }
+  .mini-stat-label { font-size:10px; color:#6b7a99; text-transform:uppercase; letter-spacing:0.06em; }
+  .mini-stat-value { font-size:14px; font-weight:700; margin-top:4px; }
+
+  /* ── Scanner Modal ── */
+  .scanner-modal { position:fixed; inset:0; z-index:200; background:rgba(2,6,23,0.92); display:none; align-items:center; justify-content:center; padding:18px; }
+  .scanner-modal.open { display:flex; }
+  .scanner-shell { width:100%; max-width:480px; background:linear-gradient(135deg,#121826,#0d1320); border:1px solid #24304a; border-radius:22px; overflow:hidden; box-shadow:0 20px 40px rgba(0,0,0,.45); }
+  .scanner-head { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; padding:18px; border-bottom:1px solid #1e2535; }
+  .scanner-head h3 { font-size:17px; font-weight:700; }
+  .scanner-head p { color:#7f8ba7; font-size:12px; margin-top:6px; line-height:1.4; }
+  .scanner-close { background:#162033; border:1px solid #31415f; color:#dbe4ff; border-radius:14px; padding:12px 16px; font-size:13px; font-weight:700; cursor:pointer; min-width:92px; }
+  .scanner-body { padding:18px; }
+  .scanner-viewport { position:relative; border-radius:18px; overflow:hidden; background:#04070d; border:1px solid #22314e; min-height:320px; }
+  .scanner-target { position:absolute; inset:0; }
+  .scanner-frame { position:absolute; left:14%; right:14%; top:32%; bottom:32%; border:4px solid #3a86ff; border-radius:24px; box-shadow:0 0 0 9999px rgba(0,0,0,.28) inset; pointer-events:none; }
+  .scanner-line { position:absolute; left:16%; right:16%; top:50%; height:2px; background:linear-gradient(90deg,transparent,#00d2ff,transparent); box-shadow:0 0 14px rgba(0,210,255,.8); animation: scanline 2.2s ease-in-out infinite; pointer-events:none; }
+  .scanner-status { color:#8ea0c2; font-size:12px; margin:14px 0 10px; min-height:18px; }
+  .scanner-controls { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .scanner-manual { margin-top:12px; display:grid; grid-template-columns:1fr auto; gap:10px; }
+  .scanner-manual input { min-width:0; }
+  .scanner-note { font-size:11px; color:#6b7a99; margin-top:10px; line-height:1.45; }
+
 
   .hidden { display: none !important; }
   .mt-10 { margin-top: 10px; }
@@ -218,7 +217,6 @@
   <div class="content" id="content"></div>
 </div>
 
-<script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
 <script>
 // ── State ──────────────────────────────────────────────────────────────
 const TODAY = new Date().toISOString().slice(0,10);
@@ -236,12 +234,6 @@ const S = {
   customFood: { name:'', calories:'', protein:'', carbs:'', fat:'' },
   scannedFood: null,
   foodWeightDisplay: '100',
-  scannerOpen: false,
-  scannerStatus: 'Point your camera at a barcode.',
-  scannerSupported: false,
-  scannerActive: false,
-  scannerError: '',
-  scannerManualCode: '',
 };
 
 // ── Persist ────────────────────────────────────────────────────────────
@@ -276,7 +268,6 @@ function formatDate(dateStr) {
   return d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
 }
 function load() {
-  S.scannerSupported = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.ZXing);
   try {
     const p = localStorage.getItem('ms:profile'); if (p) S.profile = JSON.parse(p);
     const u = localStorage.getItem('ms:unit'); if (u) S.unit = u;
@@ -350,30 +341,6 @@ function getFoodWeightInGrams() {
 }
 function getTotals() {
   return S.entries.reduce((a,e) => ({ calories: a.calories+e.calories, protein: a.protein+e.protein, carbs: a.carbs+e.carbs, fat: a.fat+e.fat }), {calories:0,protein:0,carbs:0,fat:0});
-}
-
-
-function getDateRange(days) {
-  const out = [];
-  const today = new Date(TODAY + 'T12:00:00');
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(today.getDate() - i);
-    out.push(d.toISOString().slice(0,10));
-  }
-  return out;
-}
-function getTotalsForDate(date) {
-  const entries = date === TODAY ? S.entries : getEntriesForDate(date);
-  return entries.reduce((a,e) => ({
-    calories: a.calories+e.calories,
-    protein: a.protein+e.protein,
-    carbs: a.carbs+e.carbs,
-    fat: a.fat+e.fat,
-  }), {calories:0,protein:0,carbs:0,fat:0});
-}
-function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
 }
 
 // ── Food DB ────────────────────────────────────────────────────────────
@@ -484,6 +451,116 @@ function ringHTML(value, max, color, label, size=80) {
   </div>`;
 }
 
+
+function getWeeklySnapshots() {
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 86400000);
+    const ds = d.toISOString().slice(0,10);
+    const entries = ds === TODAY ? S.entries : getEntriesForDate(ds);
+    const totals = entries.reduce((a,e) => ({
+      calories: a.calories + (e.calories || 0),
+      protein: a.protein + (e.protein || 0),
+      carbs: a.carbs + (e.carbs || 0),
+      fat: a.fat + (e.fat || 0),
+    }), { calories:0, protein:0, carbs:0, fat:0 });
+    days.push({
+      date: ds,
+      label: new Date(ds + 'T12:00:00').toLocaleDateString('en-US', { weekday:'short' }),
+      ...totals,
+    });
+  }
+  return days;
+}
+function renderWeeklyChartCard() {
+  const week = getWeeklySnapshots();
+  const avg = week.reduce((a,d) => ({
+    calories:a.calories+d.calories, protein:a.protein+d.protein, carbs:a.carbs+d.carbs, fat:a.fat+d.fat
+  }), { calories:0, protein:0, carbs:0, fat:0 });
+  const activeDays = week.filter(d => d.calories > 0).length;
+  const peak = week.reduce((m,d) => Math.max(m,d.calories), 0);
+  return `
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Weekly Macro Trends</div>
+          <div class="chart-sub">Last 7 days from your local log</div>
+        </div>
+      </div>
+      <div class="chart-grid">
+        <canvas id="weeklyCaloriesChart" height="180"></canvas>
+        <canvas id="weeklyMacrosChart" height="180"></canvas>
+      </div>
+      <div class="mini-stats">
+        <div class="mini-stat"><div class="mini-stat-label">Avg Cals</div><div class="mini-stat-value">${Math.round(avg.calories/7)}</div></div>
+        <div class="mini-stat"><div class="mini-stat-label">Avg P</div><div class="mini-stat-value">${Math.round(avg.protein/7)}g</div></div>
+        <div class="mini-stat"><div class="mini-stat-label">Active Days</div><div class="mini-stat-value">${activeDays}/7</div></div>
+        <div class="mini-stat"><div class="mini-stat-label">Peak Day</div><div class="mini-stat-value">${peak}</div></div>
+      </div>
+    </div>`;
+}
+function drawLineChart(canvasId, series, options={}) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = canvas.clientWidth || canvas.width || 320;
+  const cssH = canvas.getAttribute('height') ? parseInt(canvas.getAttribute('height')) : (canvas.clientHeight || 180);
+  canvas.width = cssW * dpr;
+  canvas.height = cssH * dpr;
+  ctx.scale(dpr, dpr);
+  const width = cssW, height = cssH;
+  ctx.clearRect(0,0,width,height);
+  const pad = { left: 32, right: 10, top: 12, bottom: 28 };
+  const plotW = width - pad.left - pad.right;
+  const plotH = height - pad.top - pad.bottom;
+  const labels = series[0]?.data.map((p) => p.label) || [];
+  const maxVal = Math.max(1, ...series.flatMap(s => s.data.map(p => p.value)));
+  const niceMax = Math.ceil(maxVal / 100) * 100 || 100;
+  ctx.strokeStyle = '#22304a';
+  ctx.lineWidth = 1;
+  ctx.font = '11px DM Sans, sans-serif';
+  ctx.fillStyle = '#6b7a99';
+  for (let i=0;i<=4;i++) {
+    const y = pad.top + (plotH * i / 4);
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(width - pad.right, y); ctx.stroke();
+    const val = Math.round(niceMax * (1 - i/4));
+    ctx.fillText(String(val), 2, y + 3);
+  }
+  labels.forEach((lab, i) => {
+    const x = pad.left + (plotW * (labels.length===1 ? 0.5 : i/(labels.length-1)));
+    ctx.fillText(lab, x - 10, height - 8);
+  });
+  series.forEach(s => {
+    ctx.beginPath();
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = s.color;
+    s.data.forEach((p, i) => {
+      const x = pad.left + (plotW * (s.data.length===1 ? 0.5 : i/(s.data.length-1)));
+      const y = pad.top + plotH - (p.value / niceMax) * plotH;
+      if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+    s.data.forEach((p, i) => {
+      const x = pad.left + (plotW * (s.data.length===1 ? 0.5 : i/(s.data.length-1)));
+      const y = pad.top + plotH - (p.value / niceMax) * plotH;
+      ctx.beginPath(); ctx.fillStyle = s.color; ctx.arc(x,y,3,0,Math.PI*2); ctx.fill();
+    });
+  });
+}
+function drawWeeklyCharts() {
+  const week = getWeeklySnapshots();
+  drawLineChart('weeklyCaloriesChart', [{
+    color: '#3a86ff',
+    data: week.map(d => ({ label:d.label, value:Math.round(d.calories) }))
+  }]);
+  drawLineChart('weeklyMacrosChart', [
+    { color:'#ff6b6b', data: week.map(d => ({ label:d.label, value:Math.round(d.protein) })) },
+    { color:'#ffd166', data: week.map(d => ({ label:d.label, value:Math.round(d.carbs) })) },
+    { color:'#06d6a0', data: week.map(d => ({ label:d.label, value:Math.round(d.fat) })) },
+  ]);
+}
+
 // ── Render ─────────────────────────────────────────────────────────────
 function render() {
   const totals = getTotals();
@@ -493,6 +570,9 @@ function render() {
   else if (S.screen === 'search') renderSearch();
   else if (S.screen === 'history') renderHistory();
   renderNav();
+  requestAnimationFrame(() => {
+    if (S.screen === 'summary') drawWeeklyCharts();
+  });
 }
 
 function renderNav() {
@@ -517,7 +597,6 @@ function renderNav() {
 }
 
 function navTo(screen) {
-  stopScanner(); S.scannerOpen = false;
   if (screen === 'summary' && !S.targets) { S.screen = 'setup'; }
   else { S.screen = screen; }
   S.scannedFood = null; S.searchError = ''; S.foodQuery = '';
@@ -651,9 +730,12 @@ function renderSummary(totals) {
     </div>
 
     <div class="saved-badge"><span class="saved-dot">●</span><span class="saved-text">Profile & log saved automatically</span></div>
-    <button class="btn-primary" onclick="goSearch()">🔍 Search Food</button>
+    <div class="grid-2">
+      <button class="btn-primary" onclick="goSearch()">🔍 Search Food</button>
+      <button class="btn-secondary" onclick="openScanner()">📷 Scan Barcode</button>
+    </div>
 
-    ${renderWeeklyCharts()}
+    ${renderWeeklyChartCard()}
 
     ${S.entries.length > 0 ? `
     <div class="card">
@@ -678,18 +760,16 @@ function renderSearch() {
   const fu = S.foodUnit;
   document.getElementById('content').innerHTML = `
     <div class="card">
-      <label class="field-label">Search Food</label>
+      <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:8px">
+        <label class="field-label" style="margin-bottom:0">Search Food</label>
+        <button class="btn-secondary" style="width:auto;padding:9px 12px" onclick="openScanner()">📷 Scan</button>
+      </div>
       <div class="hint mb-10">Try: "chicken breast", "kodiak cakes", "brown rice", "greek yogurt", "quest bar"</div>
       <div style="display:flex;gap:8px">
         <input type="text" id="foodQueryInput" placeholder="e.g. chicken breast" value="${S.foodQuery}" style="flex:1"
           onkeydown="if(event.key==='Enter')doSearch()">
         <button class="btn-primary" style="width:auto;padding:10px 16px;border-radius:10px;white-space:nowrap" onclick="doSearch()">Search</button>
       </div>
-      <div style="display:flex;gap:8px;margin-top:10px">
-        <button class="btn-secondary" onclick="openScanner()" ${S.scannerSupported ? '' : 'disabled'}>📷 Scan Barcode</button>
-        <button class="btn-secondary" onclick="lookupBarcode(prompt('Paste barcode number') || '')">Lookup Barcode</button>
-      </div>
-      <div class="hint mt-10">${"${S.scannerSupported ? 'Camera scanning works best over HTTPS and with Safari camera permission enabled.' : 'Camera scanning is not supported in this browser/device right now, but manual barcode lookup still works.'}"}</div>
     </div>
 
     ${S.searchError ? `<div class="error-box">${S.searchError}</div>` : ''}
@@ -714,8 +794,6 @@ function renderSearch() {
     </div>
   `;
   document.getElementById('foodQueryInput')?.focus();
-  document.body.insertAdjacentHTML('beforeend', renderScannerModal());
-  if (S.scannerOpen && S.scannerActive) setTimeout(() => startScanner(true), 50);
 }
 
 function renderFoodResult() {
@@ -753,89 +831,6 @@ function renderFoodResult() {
     <button class="btn-primary" onclick="addEntry()">+ Add to Log</button>
     <button class="btn-secondary" onclick="S.scannedFood=null;S.foodQuery='';S.searchError='';S.showCustom=false;render()">↩ Search Another</button>
   `;
-}
-
-
-function renderWeeklyCharts() {
-  if (!S.targets) return '';
-  const dates = getDateRange(7);
-  const data = dates.map(date => ({ date, ...getTotalsForDate(date) }));
-  const maxCalories = Math.max(S.targets.calories, ...data.map(d => d.calories), 1);
-  const avg = key => Math.round(data.reduce((sum,d)=>sum+d[key],0) / data.length);
-  const hitDays = data.filter(d => d.calories > 0 && d.protein >= S.targets.protein && d.calories <= S.targets.calories * 1.1).length;
-  return `
-    <div class="chart-card">
-      <div class="chart-header">
-        <div>
-          <div class="chart-title">Weekly Macro Graphs</div>
-          <div class="chart-sub">Last 7 days of calories and macro split</div>
-        </div>
-        <div class="chart-legend">
-          <div class="legend-item"><span class="legend-dot" style="background:#ff6b6b"></span>Protein</div>
-          <div class="legend-item"><span class="legend-dot" style="background:#ffd166"></span>Carbs</div>
-          <div class="legend-item"><span class="legend-dot" style="background:#06d6a0"></span>Fat</div>
-        </div>
-      </div>
-      <div class="week-bars">
-        ${data.map(d => {
-          const totalMacroCals = d.protein*4 + d.carbs*4 + d.fat*9;
-          const proteinPct = totalMacroCals ? (d.protein*4/totalMacroCals)*100 : 0;
-          const carbsPct = totalMacroCals ? (d.carbs*4/totalMacroCals)*100 : 0;
-          const fatPct = totalMacroCals ? (d.fat*9/totalMacroCals)*100 : 0;
-          const barHeight = Math.max((d.calories / maxCalories) * 130, d.calories ? 10 : 0);
-          const label = new Date(d.date + 'T12:00:00').toLocaleDateString('en-US',{weekday:'short'});
-          return `
-            <div class="week-day">
-              <div class="week-day-total">${Math.round(d.calories)}</div>
-              <div class="week-bar-stack" title="${label}: ${Math.round(d.calories)} kcal">
-                <div class="week-bar-fill" style="height:${barHeight * fatPct / 100}px;background:#06d6a0"></div>
-                <div class="week-bar-fill" style="height:${barHeight * carbsPct / 100}px;background:#ffd166"></div>
-                <div class="week-bar-fill" style="height:${barHeight * proteinPct / 100}px;background:#ff6b6b"></div>
-              </div>
-              <div class="week-day-label">${label}</div>
-            </div>
-          `;
-        }).join('')}
-      </div>
-      <div class="week-summary-grid">
-        <div class="week-summary-cell"><div class="week-summary-label">Avg Cals</div><div class="week-summary-val" style="color:#3a86ff">${avg('calories')}</div></div>
-        <div class="week-summary-cell"><div class="week-summary-label">Avg Protein</div><div class="week-summary-val" style="color:#ff6b6b">${avg('protein')}g</div></div>
-        <div class="week-summary-cell"><div class="week-summary-label">Avg Carbs</div><div class="week-summary-val" style="color:#ffd166">${avg('carbs')}g</div></div>
-        <div class="week-summary-cell"><div class="week-summary-label">Hit Days</div><div class="week-summary-val" style="color:#06d6a0">${hitDays}/7</div></div>
-      </div>
-    </div>`;
-}
-
-function renderScannerModal() {
-  if (!S.scannerOpen) return '';
-  return `
-    <div class="scanner-modal" id="scannerModal">
-      <div class="scanner-card">
-        <div class="scanner-top">
-          <div>
-            <div class="scanner-title">Scan Barcode</div>
-            <div class="scanner-sub">iPhone will ask for camera permission the first time.</div>
-          </div>
-          <button class="btn-icon" onclick="closeScanner()">✕ Close</button>
-        </div>
-        <div class="scanner-frame">
-          <video id="scannerVideo" playsinline muted></video>
-          <div class="scanner-guide"></div>
-        </div>
-        <div class="scanner-status">${escapeHtml(S.scannerError || S.scannerStatus)}</div>
-        <div style="padding:12px 18px 0">
-          <label class="field-label">Manual Barcode Entry</label>
-          <div style="display:flex;gap:8px">
-            <input type="text" placeholder="Type UPC / EAN" value="${escapeHtml(S.scannerManualCode)}" oninput="S.scannerManualCode=this.value" style="flex:1">
-            <button class="btn-secondary" style="width:auto" onclick="lookupBarcode(S.scannerManualCode)">Use Code</button>
-          </div>
-        </div>
-        <div class="scanner-actions">
-          <button class="btn-primary" onclick="startScanner()" ${S.scannerSupported ? '' : 'disabled'}>${S.scannerActive ? 'Scanning…' : 'Start Camera'}</button>
-          <button class="btn-secondary" onclick="stopScanner()">Stop Camera</button>
-        </div>
-      </div>
-    </div>`;
 }
 
 // ── History Screen ────────────────────────────────────────────────────
@@ -910,7 +905,7 @@ function toggleHistDay(id) {
 // ── Handlers ───────────────────────────────────────────────────────────
 function setUnit(u) { S.unit = u; save(); render(); }
 function setFoodUnit(u) { S.foodUnit = u; S.foodWeightDisplay = u==='g'?'100':'3.5'; save(); render(); }
-function goSearch() { stopScanner(); S.scannerOpen=false; S.screen='search'; S.scannedFood=null; S.searchError=''; render(); }
+function goSearch() { S.screen='search'; S.scannedFood=null; S.searchError=''; render(); }
 
 function handleSetup() {
   S.setupError = '';
@@ -1001,112 +996,176 @@ function deleteEntry(i) {
 }
 
 
-let scannerReader = null;
-let scannerControls = null;
+// ── Scanner / Barcode Lookup ───────────────────────────────────────────
+let quaggaReady = false;
+let quaggaDetectedHandler = null;
 
+function setScannerStatus(msg) {
+  const el = document.getElementById('scannerStatus');
+  if (el) el.textContent = msg;
+}
 function openScanner() {
-  S.scannerOpen = true;
-  S.scannerError = '';
-  S.scannerStatus = 'Tap “Start Camera” to begin scanning.';
-  render();
+  const modal = document.getElementById('scannerModal');
+  if (modal) {
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+  setScannerStatus('Ready to scan.');
+}
+function stopScanner() {
+  try {
+    if (window.Quagga) {
+      window.Quagga.offDetected(quaggaDetectedHandler);
+      window.Quagga.stop();
+    }
+  } catch(e) {}
+  quaggaReady = false;
+  setScannerStatus('Camera stopped.');
 }
 function closeScanner() {
   stopScanner();
-  S.scannerOpen = false;
-  render();
-}
-function stopScanner() {
-  try { if (scannerControls && scannerControls.stop) scannerControls.stop(); } catch(e) {}
-  try { if (scannerReader && scannerReader.reset) scannerReader.reset(); } catch(e) {}
-  const video = document.getElementById('scannerVideo');
-  if (video && video.srcObject) {
-    try { video.srcObject.getTracks().forEach(t => t.stop()); } catch(e) {}
-    video.srcObject = null;
+  const modal = document.getElementById('scannerModal');
+  if (modal) {
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
   }
-  S.scannerActive = false;
-  S.scannerStatus = 'Camera stopped.';
 }
-async function startScanner(isRerender) {
-  if (!S.scannerSupported) {
-    S.scannerError = 'Camera scanning is not supported on this browser/device.';
-    if (!isRerender) render();
+function startScanner() {
+  if (!window.isSecureContext) {
+    setScannerStatus('Camera scanning needs HTTPS. GitHub Pages is fine; local files are not.');
     return;
   }
-  const video = document.getElementById('scannerVideo');
-  if (!video) {
-    if (!isRerender) render();
+  if (!window.Quagga) {
+    setScannerStatus('Scanner library failed to load. Use manual barcode entry below.');
     return;
   }
   stopScanner();
-  S.scannerError = '';
-  S.scannerStatus = 'Requesting camera permission…';
-  if (!isRerender) render();
-  try {
-    scannerReader = new ZXing.BrowserMultiFormatReader();
-    scannerControls = await scannerReader.decodeFromVideoDevice(undefined, 'scannerVideo', (result, err, controls) => {
-      scannerControls = controls || scannerControls;
-      if (result) {
-        const code = result.getText();
-        stopScanner();
-        lookupBarcode(code);
+  setScannerStatus('Requesting camera permission...');
+  const target = document.getElementById('scannerTarget');
+  quaggaDetectedHandler = (result) => {
+    const code = result?.codeResult?.code;
+    if (!code) return;
+    setScannerStatus('Found barcode ' + code + '. Looking it up...');
+    stopScanner();
+    lookupBarcode(code);
+  };
+  window.Quagga.init({
+    inputStream: {
+      type: 'LiveStream',
+      target,
+      constraints: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      },
+      area: {
+        top: '30%',
+        right: '12%',
+        left: '12%',
+        bottom: '30%'
       }
-    });
-    S.scannerActive = true;
-    S.scannerStatus = 'Scanning… hold barcode inside the frame.';
-    const modalStatus = document.querySelector('.scanner-status');
-    if (modalStatus) modalStatus.textContent = S.scannerStatus;
-  } catch (e) {
-    S.scannerActive = false;
-    S.scannerError = 'Camera permission denied or unavailable. You can still paste the barcode manually.';
-    if (!isRerender) render();
+    },
+    locator: { patchSize: 'medium', halfSample: true },
+    numOfWorkers: navigator.hardwareConcurrency ? Math.min(4, navigator.hardwareConcurrency) : 2,
+    frequency: 10,
+    decoder: {
+      readers: ['ean_reader', 'ean_8_reader', 'upc_reader', 'upc_e_reader', 'code_128_reader']
+    },
+    locate: true
+  }, function(err) {
+    if (err) {
+      console.error(err);
+      setScannerStatus('Camera could not start. Check Safari camera permission, then try again.');
+      return;
+    }
+    window.Quagga.onDetected(quaggaDetectedHandler);
+    window.Quagga.start();
+    quaggaReady = true;
+    setScannerStatus('Point the barcode inside the blue box.');
+  });
+}
+async function lookupBarcode(code) {
+  try {
+    const clean = String(code || '').trim();
+    if (!clean) {
+      setScannerStatus('Enter a valid barcode.');
+      return;
+    }
+    setScannerStatus('Looking up barcode ' + clean + '...');
+    const res = await fetch('https://world.openfoodfacts.org/api/v2/product/' + encodeURIComponent(clean) + '.json');
+    if (!res.ok) throw new Error('lookup failed');
+    const data = await res.json();
+    const product = data && data.product;
+    const nutr = product && product.nutriments ? product.nutriments : null;
+    if (!product || !nutr) throw new Error('not found');
+    const calories = Number(nutr['energy-kcal_100g'] ?? nutr['energy-kcal'] ?? 0);
+    const protein = Number(nutr.proteins_100g ?? nutr.proteins ?? 0);
+    const carbs = Number(nutr.carbohydrates_100g ?? nutr.carbohydrates ?? 0);
+    const fat = Number(nutr.fat_100g ?? nutr.fat ?? 0);
+    const serving = Number(product.product_quantity || 100) > 0 ? 100 : 100;
+    S.scannedFood = {
+      name: product.product_name || ('Barcode ' + clean),
+      calories: Math.round(calories * 10) / 10,
+      protein: Math.round(protein * 10) / 10,
+      carbs: Math.round(carbs * 10) / 10,
+      fat: Math.round(fat * 10) / 10,
+      serving,
+      barcode: clean
+    };
+    S.screen = 'search';
+    S.searchError = '';
+    S.foodWeightDisplay = S.foodUnit === 'g' ? '100' : '3.5';
+    closeScanner();
+    render();
+  } catch (err) {
+    console.error(err);
+    setScannerStatus('No barcode match found. You can still type the code or use custom food.');
   }
 }
-async function lookupBarcode(rawCode) {
-  const code = String(rawCode || '').trim();
-  if (!code) return;
-  S.scannerManualCode = code;
-  S.searchError = '';
-  S.scannerError = '';
-  S.scannerStatus = 'Looking up barcode ' + code + '…';
-  render();
-  try {
-    const res = await fetch('https://world.openfoodfacts.org/api/v0/product/' + encodeURIComponent(code) + '.json');
-    const data = await res.json();
-    if (data && data.status === 1 && data.product) {
-      const p = data.product;
-      const n = p.nutriments || {};
-      const calories = Number(n['energy-kcal_100g'] ?? n['energy-kcal'] ?? 0);
-      const protein = Number(n.proteins_100g ?? n.proteins ?? 0);
-      const carbs = Number(n.carbohydrates_100g ?? n.carbohydrates ?? 0);
-      const fat = Number(n.fat_100g ?? n.fat ?? 0);
-      const name = p.product_name || p.generic_name || ('Barcode ' + code);
-      if (!(calories || protein || carbs || fat)) {
-        throw new Error('No macro data found for this barcode.');
-      }
-      S.scannedFood = { name, calories, protein, carbs, fat, serving: 100, barcode: code };
-      S.scannerOpen = false;
-      stopScanner();
-      render();
-      return;
-    }
-    throw new Error('Barcode not found in the food database.');
-  } catch (e) {
-    const food = searchFood(code);
-    if (food) {
-      S.scannedFood = { ...food, barcode: code };
-      S.scannerOpen = false;
-      stopScanner();
-      render();
-      return;
-    }
-    S.scannerError = e.message || 'Unable to look up that barcode.';
-    render();
+function submitManualBarcode() {
+  const input = document.getElementById('manualBarcodeInput');
+  const code = input ? input.value.trim() : '';
+  if (!code) {
+    setScannerStatus('Type a UPC/EAN first.');
+    return;
   }
+  lookupBarcode(code);
 }
 
 // ── Boot ───────────────────────────────────────────────────────────────
 load();
 render();
 </script>
+
+<div id="scannerModal" class="scanner-modal" aria-hidden="true">
+  <div class="scanner-shell">
+    <div class="scanner-head">
+      <div>
+        <h3>Scan Barcode</h3>
+        <p>iPhone will ask for camera permission the first time. If scanning struggles, type the UPC/EAN manually below.</p>
+      </div>
+      <button class="scanner-close" onclick="closeScanner()">Close</button>
+    </div>
+    <div class="scanner-body">
+      <div class="scanner-viewport">
+        <div id="scannerTarget" class="scanner-target"></div>
+        <div class="scanner-frame"></div>
+        <div class="scanner-line"></div>
+      </div>
+      <div id="scannerStatus" class="scanner-status">Ready to scan.</div>
+      <div class="scanner-manual">
+        <input id="manualBarcodeInput" type="text" inputmode="numeric" placeholder="Type UPC / EAN">
+        <button class="btn-secondary" onclick="submitManualBarcode()">Use Code</button>
+      </div>
+      <div class="scanner-controls">
+        <button class="btn-primary" onclick="startScanner()">Start Camera</button>
+        <button class="btn-secondary" onclick="stopScanner()">Stop Camera</button>
+      </div>
+      <div class="scanner-note">Scanning works best over HTTPS with the rear camera. This version prefers the back camera and closes cleanly when you tap Close.</div>
+    </div>
+  </div>
+</div>
+<script src="https://unpkg.com/@ericblade/quagga2@1.12.1/dist/quagga.min.js"></script>
+
 </body>
 </html>

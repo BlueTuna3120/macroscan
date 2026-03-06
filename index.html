@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>MacroScan</title>
+
+<meta name="theme-color" content="#0d1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MacroScan">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="manifest" href="site.webmanifest">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -159,6 +166,37 @@
   .hist-empty { text-align: center; color: #4a5568; font-size: 14px; padding: 40px 20px; }
 
 
+  /* ── Weekly Charts ── */
+  .chart-card { background: linear-gradient(135deg,#1a1f2e,#131824); border-radius: 16px; padding: 18px; border: 1px solid #1e2535; }
+  .chart-header { display:flex; justify-content:space-between; align-items:flex-end; gap:10px; margin-bottom:14px; }
+  .chart-title { font-size:16px; font-weight:700; }
+  .chart-sub { font-size:11px; color:#6b7a99; margin-top:4px; }
+  .chart-legend { display:flex; gap:10px; flex-wrap:wrap; }
+  .legend-item { display:flex; align-items:center; gap:6px; font-size:11px; color:#8891a8; }
+  .legend-dot { width:10px; height:10px; border-radius:999px; display:inline-block; }
+  .week-bars { display:grid; grid-template-columns:repeat(7,1fr); gap:10px; align-items:end; height:180px; margin-top:6px; }
+  .week-day { display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:8px; height:100%; }
+  .week-bar-stack { height:130px; width:100%; max-width:34px; background:#111827; border:1px solid #1e2535; border-radius:12px; overflow:hidden; display:flex; flex-direction:column; justify-content:flex-end; }
+  .week-bar-fill { width:100%; min-height:0; }
+  .week-day-label { font-size:10px; color:#6b7a99; text-transform:uppercase; }
+  .week-day-total { font-size:11px; font-weight:700; color:#e2e8f0; }
+  .week-summary-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:16px; }
+  .week-summary-cell { background:#111827; border-radius:10px; padding:10px 8px; text-align:center; }
+  .week-summary-label { font-size:10px; color:#6b7a99; text-transform:uppercase; }
+  .week-summary-val { font-size:14px; font-weight:700; margin-top:4px; }
+  /* ── Scanner ── */
+  .scanner-modal { position:fixed; inset:0; background:rgba(5,8,12,0.9); z-index:300; display:flex; align-items:center; justify-content:center; padding:18px; }
+  .scanner-card { width:100%; max-width:480px; background:linear-gradient(135deg,#151b29,#0f1420); border:1px solid #263248; border-radius:18px; overflow:hidden; }
+  .scanner-top { padding:16px 18px 10px; display:flex; justify-content:space-between; align-items:center; }
+  .scanner-title { font-size:16px; font-weight:700; }
+  .scanner-sub { font-size:12px; color:#6b7a99; margin-top:4px; }
+  .scanner-frame { position:relative; background:#02050a; aspect-ratio:3/4; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  #scannerVideo { width:100%; height:100%; object-fit:cover; }
+  .scanner-guide { position:absolute; width:78%; height:110px; border:2px solid rgba(58,134,255,0.95); border-radius:16px; box-shadow:0 0 0 9999px rgba(0,0,0,0.28); }
+  .scanner-guide::after { content:''; position:absolute; left:8%; right:8%; top:50%; height:2px; background:linear-gradient(90deg,transparent,#00d2ff,transparent); animation:scanline 1.8s linear infinite; }
+  .scanner-status { padding:12px 18px 0; font-size:12px; color:#8891a8; }
+  .scanner-actions { padding:16px 18px 18px; display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
   .hidden { display: none !important; }
   .mt-10 { margin-top: 10px; }
   .mt-12 { margin-top: 12px; }
@@ -180,6 +218,7 @@
   <div class="content" id="content"></div>
 </div>
 
+<script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
 <script>
 // ── State ──────────────────────────────────────────────────────────────
 const TODAY = new Date().toISOString().slice(0,10);
@@ -197,6 +236,12 @@ const S = {
   customFood: { name:'', calories:'', protein:'', carbs:'', fat:'' },
   scannedFood: null,
   foodWeightDisplay: '100',
+  scannerOpen: false,
+  scannerStatus: 'Point your camera at a barcode.',
+  scannerSupported: false,
+  scannerActive: false,
+  scannerError: '',
+  scannerManualCode: '',
 };
 
 // ── Persist ────────────────────────────────────────────────────────────
@@ -231,6 +276,7 @@ function formatDate(dateStr) {
   return d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
 }
 function load() {
+  S.scannerSupported = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.ZXing);
   try {
     const p = localStorage.getItem('ms:profile'); if (p) S.profile = JSON.parse(p);
     const u = localStorage.getItem('ms:unit'); if (u) S.unit = u;
@@ -304,6 +350,30 @@ function getFoodWeightInGrams() {
 }
 function getTotals() {
   return S.entries.reduce((a,e) => ({ calories: a.calories+e.calories, protein: a.protein+e.protein, carbs: a.carbs+e.carbs, fat: a.fat+e.fat }), {calories:0,protein:0,carbs:0,fat:0});
+}
+
+
+function getDateRange(days) {
+  const out = [];
+  const today = new Date(TODAY + 'T12:00:00');
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    out.push(d.toISOString().slice(0,10));
+  }
+  return out;
+}
+function getTotalsForDate(date) {
+  const entries = date === TODAY ? S.entries : getEntriesForDate(date);
+  return entries.reduce((a,e) => ({
+    calories: a.calories+e.calories,
+    protein: a.protein+e.protein,
+    carbs: a.carbs+e.carbs,
+    fat: a.fat+e.fat,
+  }), {calories:0,protein:0,carbs:0,fat:0});
+}
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
 }
 
 // ── Food DB ────────────────────────────────────────────────────────────
@@ -447,6 +517,7 @@ function renderNav() {
 }
 
 function navTo(screen) {
+  stopScanner(); S.scannerOpen = false;
   if (screen === 'summary' && !S.targets) { S.screen = 'setup'; }
   else { S.screen = screen; }
   S.scannedFood = null; S.searchError = ''; S.foodQuery = '';
@@ -582,6 +653,8 @@ function renderSummary(totals) {
     <div class="saved-badge"><span class="saved-dot">●</span><span class="saved-text">Profile & log saved automatically</span></div>
     <button class="btn-primary" onclick="goSearch()">🔍 Search Food</button>
 
+    ${renderWeeklyCharts()}
+
     ${S.entries.length > 0 ? `
     <div class="card">
       <div class="log-header">
@@ -612,6 +685,11 @@ function renderSearch() {
           onkeydown="if(event.key==='Enter')doSearch()">
         <button class="btn-primary" style="width:auto;padding:10px 16px;border-radius:10px;white-space:nowrap" onclick="doSearch()">Search</button>
       </div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn-secondary" onclick="openScanner()" ${S.scannerSupported ? '' : 'disabled'}>📷 Scan Barcode</button>
+        <button class="btn-secondary" onclick="lookupBarcode(prompt('Paste barcode number') || '')">Lookup Barcode</button>
+      </div>
+      <div class="hint mt-10">${"${S.scannerSupported ? 'Camera scanning works best over HTTPS and with Safari camera permission enabled.' : 'Camera scanning is not supported in this browser/device right now, but manual barcode lookup still works.'}"}</div>
     </div>
 
     ${S.searchError ? `<div class="error-box">${S.searchError}</div>` : ''}
@@ -636,6 +714,8 @@ function renderSearch() {
     </div>
   `;
   document.getElementById('foodQueryInput')?.focus();
+  document.body.insertAdjacentHTML('beforeend', renderScannerModal());
+  if (S.scannerOpen && S.scannerActive) setTimeout(() => startScanner(true), 50);
 }
 
 function renderFoodResult() {
@@ -673,6 +753,89 @@ function renderFoodResult() {
     <button class="btn-primary" onclick="addEntry()">+ Add to Log</button>
     <button class="btn-secondary" onclick="S.scannedFood=null;S.foodQuery='';S.searchError='';S.showCustom=false;render()">↩ Search Another</button>
   `;
+}
+
+
+function renderWeeklyCharts() {
+  if (!S.targets) return '';
+  const dates = getDateRange(7);
+  const data = dates.map(date => ({ date, ...getTotalsForDate(date) }));
+  const maxCalories = Math.max(S.targets.calories, ...data.map(d => d.calories), 1);
+  const avg = key => Math.round(data.reduce((sum,d)=>sum+d[key],0) / data.length);
+  const hitDays = data.filter(d => d.calories > 0 && d.protein >= S.targets.protein && d.calories <= S.targets.calories * 1.1).length;
+  return `
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Weekly Macro Graphs</div>
+          <div class="chart-sub">Last 7 days of calories and macro split</div>
+        </div>
+        <div class="chart-legend">
+          <div class="legend-item"><span class="legend-dot" style="background:#ff6b6b"></span>Protein</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#ffd166"></span>Carbs</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#06d6a0"></span>Fat</div>
+        </div>
+      </div>
+      <div class="week-bars">
+        ${data.map(d => {
+          const totalMacroCals = d.protein*4 + d.carbs*4 + d.fat*9;
+          const proteinPct = totalMacroCals ? (d.protein*4/totalMacroCals)*100 : 0;
+          const carbsPct = totalMacroCals ? (d.carbs*4/totalMacroCals)*100 : 0;
+          const fatPct = totalMacroCals ? (d.fat*9/totalMacroCals)*100 : 0;
+          const barHeight = Math.max((d.calories / maxCalories) * 130, d.calories ? 10 : 0);
+          const label = new Date(d.date + 'T12:00:00').toLocaleDateString('en-US',{weekday:'short'});
+          return `
+            <div class="week-day">
+              <div class="week-day-total">${Math.round(d.calories)}</div>
+              <div class="week-bar-stack" title="${label}: ${Math.round(d.calories)} kcal">
+                <div class="week-bar-fill" style="height:${barHeight * fatPct / 100}px;background:#06d6a0"></div>
+                <div class="week-bar-fill" style="height:${barHeight * carbsPct / 100}px;background:#ffd166"></div>
+                <div class="week-bar-fill" style="height:${barHeight * proteinPct / 100}px;background:#ff6b6b"></div>
+              </div>
+              <div class="week-day-label">${label}</div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+      <div class="week-summary-grid">
+        <div class="week-summary-cell"><div class="week-summary-label">Avg Cals</div><div class="week-summary-val" style="color:#3a86ff">${avg('calories')}</div></div>
+        <div class="week-summary-cell"><div class="week-summary-label">Avg Protein</div><div class="week-summary-val" style="color:#ff6b6b">${avg('protein')}g</div></div>
+        <div class="week-summary-cell"><div class="week-summary-label">Avg Carbs</div><div class="week-summary-val" style="color:#ffd166">${avg('carbs')}g</div></div>
+        <div class="week-summary-cell"><div class="week-summary-label">Hit Days</div><div class="week-summary-val" style="color:#06d6a0">${hitDays}/7</div></div>
+      </div>
+    </div>`;
+}
+
+function renderScannerModal() {
+  if (!S.scannerOpen) return '';
+  return `
+    <div class="scanner-modal" id="scannerModal">
+      <div class="scanner-card">
+        <div class="scanner-top">
+          <div>
+            <div class="scanner-title">Scan Barcode</div>
+            <div class="scanner-sub">iPhone will ask for camera permission the first time.</div>
+          </div>
+          <button class="btn-icon" onclick="closeScanner()">✕ Close</button>
+        </div>
+        <div class="scanner-frame">
+          <video id="scannerVideo" playsinline muted></video>
+          <div class="scanner-guide"></div>
+        </div>
+        <div class="scanner-status">${escapeHtml(S.scannerError || S.scannerStatus)}</div>
+        <div style="padding:12px 18px 0">
+          <label class="field-label">Manual Barcode Entry</label>
+          <div style="display:flex;gap:8px">
+            <input type="text" placeholder="Type UPC / EAN" value="${escapeHtml(S.scannerManualCode)}" oninput="S.scannerManualCode=this.value" style="flex:1">
+            <button class="btn-secondary" style="width:auto" onclick="lookupBarcode(S.scannerManualCode)">Use Code</button>
+          </div>
+        </div>
+        <div class="scanner-actions">
+          <button class="btn-primary" onclick="startScanner()" ${S.scannerSupported ? '' : 'disabled'}>${S.scannerActive ? 'Scanning…' : 'Start Camera'}</button>
+          <button class="btn-secondary" onclick="stopScanner()">Stop Camera</button>
+        </div>
+      </div>
+    </div>`;
 }
 
 // ── History Screen ────────────────────────────────────────────────────
@@ -747,7 +910,7 @@ function toggleHistDay(id) {
 // ── Handlers ───────────────────────────────────────────────────────────
 function setUnit(u) { S.unit = u; save(); render(); }
 function setFoodUnit(u) { S.foodUnit = u; S.foodWeightDisplay = u==='g'?'100':'3.5'; save(); render(); }
-function goSearch() { S.screen='search'; S.scannedFood=null; S.searchError=''; render(); }
+function goSearch() { stopScanner(); S.scannerOpen=false; S.screen='search'; S.scannedFood=null; S.searchError=''; render(); }
 
 function handleSetup() {
   S.setupError = '';
@@ -835,6 +998,110 @@ function addEntry() {
 
 function deleteEntry(i) {
   S.entries.splice(i,1); save(); render();
+}
+
+
+let scannerReader = null;
+let scannerControls = null;
+
+function openScanner() {
+  S.scannerOpen = true;
+  S.scannerError = '';
+  S.scannerStatus = 'Tap “Start Camera” to begin scanning.';
+  render();
+}
+function closeScanner() {
+  stopScanner();
+  S.scannerOpen = false;
+  render();
+}
+function stopScanner() {
+  try { if (scannerControls && scannerControls.stop) scannerControls.stop(); } catch(e) {}
+  try { if (scannerReader && scannerReader.reset) scannerReader.reset(); } catch(e) {}
+  const video = document.getElementById('scannerVideo');
+  if (video && video.srcObject) {
+    try { video.srcObject.getTracks().forEach(t => t.stop()); } catch(e) {}
+    video.srcObject = null;
+  }
+  S.scannerActive = false;
+  S.scannerStatus = 'Camera stopped.';
+}
+async function startScanner(isRerender) {
+  if (!S.scannerSupported) {
+    S.scannerError = 'Camera scanning is not supported on this browser/device.';
+    if (!isRerender) render();
+    return;
+  }
+  const video = document.getElementById('scannerVideo');
+  if (!video) {
+    if (!isRerender) render();
+    return;
+  }
+  stopScanner();
+  S.scannerError = '';
+  S.scannerStatus = 'Requesting camera permission…';
+  if (!isRerender) render();
+  try {
+    scannerReader = new ZXing.BrowserMultiFormatReader();
+    scannerControls = await scannerReader.decodeFromVideoDevice(undefined, 'scannerVideo', (result, err, controls) => {
+      scannerControls = controls || scannerControls;
+      if (result) {
+        const code = result.getText();
+        stopScanner();
+        lookupBarcode(code);
+      }
+    });
+    S.scannerActive = true;
+    S.scannerStatus = 'Scanning… hold barcode inside the frame.';
+    const modalStatus = document.querySelector('.scanner-status');
+    if (modalStatus) modalStatus.textContent = S.scannerStatus;
+  } catch (e) {
+    S.scannerActive = false;
+    S.scannerError = 'Camera permission denied or unavailable. You can still paste the barcode manually.';
+    if (!isRerender) render();
+  }
+}
+async function lookupBarcode(rawCode) {
+  const code = String(rawCode || '').trim();
+  if (!code) return;
+  S.scannerManualCode = code;
+  S.searchError = '';
+  S.scannerError = '';
+  S.scannerStatus = 'Looking up barcode ' + code + '…';
+  render();
+  try {
+    const res = await fetch('https://world.openfoodfacts.org/api/v0/product/' + encodeURIComponent(code) + '.json');
+    const data = await res.json();
+    if (data && data.status === 1 && data.product) {
+      const p = data.product;
+      const n = p.nutriments || {};
+      const calories = Number(n['energy-kcal_100g'] ?? n['energy-kcal'] ?? 0);
+      const protein = Number(n.proteins_100g ?? n.proteins ?? 0);
+      const carbs = Number(n.carbohydrates_100g ?? n.carbohydrates ?? 0);
+      const fat = Number(n.fat_100g ?? n.fat ?? 0);
+      const name = p.product_name || p.generic_name || ('Barcode ' + code);
+      if (!(calories || protein || carbs || fat)) {
+        throw new Error('No macro data found for this barcode.');
+      }
+      S.scannedFood = { name, calories, protein, carbs, fat, serving: 100, barcode: code };
+      S.scannerOpen = false;
+      stopScanner();
+      render();
+      return;
+    }
+    throw new Error('Barcode not found in the food database.');
+  } catch (e) {
+    const food = searchFood(code);
+    if (food) {
+      S.scannedFood = { ...food, barcode: code };
+      S.scannerOpen = false;
+      stopScanner();
+      render();
+      return;
+    }
+    S.scannerError = e.message || 'Unable to look up that barcode.';
+    render();
+  }
 }
 
 // ── Boot ───────────────────────────────────────────────────────────────

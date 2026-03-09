@@ -683,7 +683,6 @@ function renderSearch() {
         <button class="btn-primary" onclick="useCustomFood()">Use This Food →</button>
       </div>
     </div>`;
-  if (!S.searchLoading) document.getElementById('foodQueryInput')?.focus();
 }
 
 function selectSearchResult(i) {
@@ -819,6 +818,7 @@ function scannerModalHTML() {
           <label class="field-label">Manual Barcode</label>
           <div style="display:flex;gap:8px">
             <input type="text" inputmode="numeric" placeholder="e.g. 0123456789012" value="${escHtml(S.scannerManualCode)}"
+              readonly onfocus="this.removeAttribute('readonly')"
               oninput="S.scannerManualCode=this.value" style="flex:1" onkeydown="if(event.key==='Enter')lookupBarcode(S.scannerManualCode)">
             <button class="btn-secondary" style="width:auto;white-space:nowrap" onclick="lookupBarcode(S.scannerManualCode)">Look Up</button>
           </div>

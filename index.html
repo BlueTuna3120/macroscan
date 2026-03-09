@@ -834,6 +834,7 @@ function scannerModalHTML() {
 
 function openScanner() {
   S.scannedFood = null; S.searchResults = null; S.foodQuery = '';
+  S.scannerManualCode = '';
   S.scannerOpen = true; S.scannerError = ''; S.scannerStatus = 'Tap Start Camera to begin.';
   render();
 }
@@ -976,6 +977,7 @@ async function doSearch() {
 function useCustomFood() {
   if (!S.customFood.name) return;
   S.scannedFood = { name:S.customFood.name, calories:parseFloat(S.customFood.calories)||0, protein:parseFloat(S.customFood.protein)||0, carbs:parseFloat(S.customFood.carbs)||0, fat:parseFloat(S.customFood.fat)||0, serving:100, barcode:'custom' };
+  S.customFood = { name:'', calories:'', protein:'', carbs:'', fat:'' };
   S.showCustom = false; render();
 }
 

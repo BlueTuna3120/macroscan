@@ -726,7 +726,7 @@ function renderFoodResult() {
           </button>`).join('')}
       </div>
       <div class="amount-wrap">
-        <input type="number" id="amountInput" value="${escHtml(S.foodWeightDisplay)}"
+        <input type="text" inputmode="decimal" id="amountInput" value="${escHtml(S.foodWeightDisplay)}"
           placeholder="${defaultAmountForUnit(fu)}"
           style="padding-right:52px" oninput="S.foodWeightDisplay=this.value;updatePreview()" onchange="S.foodWeightDisplay=this.value;updatePreview()">
         <span class="amount-unit" style="font-size:11px">${fu}</span>

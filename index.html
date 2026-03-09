@@ -284,8 +284,23 @@ function load() {
 // ── Math ───────────────────────────────────────────────────────────────
 const lbsToKg = l => l * 0.453592;
 const ftInToCm = (f, i) => (f * 12 + parseFloat(i||0)) * 2.54;
-const ozToG = o => o * 28.3495;
-const gToOz = g => g / 28.3495;
+const ozToG  = o => o * 28.3495;
+const gToOz  = g => g / 28.3495;
+const mlToG  = m => m;          // 1ml ≈ 1g for water-based foods
+const flozToG = f => f * 29.5735;
+function unitToGrams(val, unit) {
+  if (unit === 'g'  || unit === 'ml') return val;
+  if (unit === 'oz') return ozToG(val);
+  if (unit === 'floz') return flozToG(val);
+  return val;
+}
+function defaultAmountForUnit(unit) {
+  if (unit === 'g')    return '100';
+  if (unit === 'ml')   return '355';   // standard can
+  if (unit === 'oz')   return '3.5';
+  if (unit === 'floz') return '12';    // standard can in fl oz
+  return '100';
+}
 function bmr(wKg, hCm, age, gender) {
   return gender === 'male'
     ? 88.362 + 13.397*wKg + 4.799*hCm - 5.677*age
@@ -314,7 +329,7 @@ function computeTargets(TDEE, goal, wLbs) {
 function getFoodWeightInGrams() {
   const v = parseFloat(S.foodWeightDisplay);
   if (!v || v <= 0) return 0;
-  return S.foodUnit === 'g' ? v : ozToG(v);
+  return unitToGrams(v, S.foodUnit);
 }
 function getTotals() {
   return S.entries.reduce((a,e) => ({ calories:a.calories+e.calories, protein:a.protein+e.protein, carbs:a.carbs+e.carbs, fat:a.fat+e.fat }), {calories:0,protein:0,carbs:0,fat:0});
@@ -444,12 +459,7 @@ function renderSetup() {
         <button class="toggle-btn ${S.unit==='metric'?'active':''}" onclick="setUnit('metric')"><div class="tb-label">Metric</div><div class="tb-sub">kg / cm</div></button>
       </div>
       <div class="hint mt-10">${S.unit==='imperial'?'Body: lbs & feet/inches':'Body: kg & cm'}</div>
-      <div class="section-label" style="margin-top:20px;margin-bottom:10px">Food Weight Unit</div>
-      <div class="toggle-group">
-        <button class="toggle-btn ${S.foodUnit==='g'?'active':''}" onclick="setFoodUnit('g')"><div class="tb-label">Grams</div><div class="tb-sub">g</div></button>
-        <button class="toggle-btn ${S.foodUnit==='oz'?'active':''}" onclick="setFoodUnit('oz')"><div class="tb-label">Ounces</div><div class="tb-sub">oz</div></button>
-      </div>
-      <div class="hint mt-10">Food portions entered in ${S.foodUnit==='g'?'grams':'ounces'}</div>
+
     </div>
 
     <div class="card">
@@ -680,14 +690,20 @@ function selectSearchResult(i) {
   const f = S.searchResults[i];
   S.scannedFood = { ...f, barcode: '' };
   S.searchResults = null;
-  S.foodWeightDisplay = S.foodUnit === 'g' ? '100' : '3.5';
+  S.foodUnit = 'g';
+  S.foodWeightDisplay = '100';
   render();
 }
 
 function renderFoodResult() {
   const f = S.scannedFood, fu = S.foodUnit;
   const grams = getFoodWeightInGrams(), ratio = grams / (f.serving||100);
-  const servDisp = fu==='g' ? `per ${f.serving||100}g` : `per ${Math.round(gToOz(f.serving||100)*100)/100}oz`;
+  const units = [
+    { id:'g',    label:'g',     sub:'grams' },
+    { id:'oz',   label:'oz',    sub:'ounces' },
+    { id:'ml',   label:'ml',    sub:'milliliters' },
+    { id:'floz', label:'fl oz', sub:'fluid oz' },
+  ];
   document.getElementById('content').innerHTML = `
     <div class="food-result-card">
       <div class="food-name">${escHtml(f.name)}</div>
@@ -697,14 +713,24 @@ function renderFoodResult() {
           <div class="macro-tile">
             <div class="macro-tile-label">${l}</div>
             <div class="macro-tile-val" style="color:${c}">${v}<span>${u}</span></div>
-            <div class="macro-tile-sub">${servDisp}</div>
+            <div class="macro-tile-sub">per 100g</div>
           </div>`).join('')}
       </div>
-      <label class="field-label">Amount (${fu})</label>
+      <label class="field-label" style="margin-bottom:8px">Amount</label>
+      <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+        ${units.map(u => `
+          <button onclick="setFoodUnit('${u.id}')"
+            style="flex:1;min-width:56px;padding:8px 4px;border-radius:10px;border:2px solid ${fu===u.id?'#3a86ff':'#2d3748'};
+                   background:${fu===u.id?'linear-gradient(135deg,#1d3a6e,#162d5a)':'#1e2535'};
+                   color:${fu===u.id?'#fff':'#8891a8'};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
+            ${u.label}
+          </button>`).join('')}
+      </div>
       <div class="amount-wrap">
-        <input type="number" id="amountInput" value="${escHtml(S.foodWeightDisplay)}" placeholder="${fu==='g'?'100':'3.5'}"
-          style="padding-right:40px" oninput="S.foodWeightDisplay=this.value;updatePreview()">
-        <span class="amount-unit">${fu}</span>
+        <input type="number" id="amountInput" value="${escHtml(S.foodWeightDisplay)}"
+          placeholder="${defaultAmountForUnit(fu)}"
+          style="padding-right:52px" oninput="S.foodWeightDisplay=this.value;updatePreview()">
+        <span class="amount-unit" style="font-size:11px">${fu}</span>
       </div>
       <div class="preview-row" id="previewRow" style="${grams>0?'':'display:none'}">
         <div class="preview-cell"><div class="preview-label">Cals</div><div class="preview-val" style="color:#3a86ff">${Math.round(f.calories*ratio)}</div></div>
@@ -893,7 +919,7 @@ function promptBarcode() {
 
 // ── Handlers ───────────────────────────────────────────────────────────
 function setUnit(u) { S.unit = u; save(); render(); }
-function setFoodUnit(u) { S.foodUnit = u; S.foodWeightDisplay = u==='g'?'100':'3.5'; save(); render(); }
+function setFoodUnit(u) { S.foodUnit = u; S.foodWeightDisplay = defaultAmountForUnit(u); render(); }
 function goSearch() { stopScanner(); S.scannerOpen=false; S.screen='search'; S.scannedFood=null; S.searchError=''; S.searchResults=null; S.searchLoading=false; render(); }
 function toggleCustom() { S.showCustom = !S.showCustom; render(); }
 

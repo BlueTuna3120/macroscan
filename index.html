@@ -286,7 +286,7 @@ const ozToG = o => o * 28.3495;
 const gToOz = g => g / 28.3495;
 function bmr(wKg, hCm, age, gender) {
   return gender === 'male'
-    ? 88.362 + 1.397*wKg + 4.799*hCm - 5.677*age
+    ? 88.362 + 13.397*wKg + 4.799*hCm - 5.677*age
     : 447.593 + 9.247*wKg + 3.098*hCm - 4.33*age;
 }
 function tdee(b, act) {

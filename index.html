@@ -297,16 +297,16 @@ const GOALS = {
   cut:       { label:'Cut',       icon:'✂️',  desc:'Calorie deficit -300–500 · Maximize fat loss',        detail:'-300–500 cal below maintenance · Protein 1–1.2g/lb · Carbs 25–40% · Fat 20–30%',   calOffset:-400, proteinPerLb:1.1,  carbPct:0.32, fatPct:0.25 },
   lean_bulk: { label:'Lean Bulk', icon:'💪',  desc:'Maintenance to +200 · Muscle with minimal fat',      detail:'Maint to +200 cal · Protein 1g/lb · Carbs 40–50% · Fat 25–35%',                     calOffset:+150, proteinPerLb:1.0,  carbPct:0.45, fatPct:0.30 },
   fat_loss:  { label:'Fat Loss',  icon:'🔥',  desc:'Calorie deficit -300–500 · General fat loss',        detail:'-300–500 cal below maintenance · Protein 0.8–1g/lb · Carbs 30–40% · Fat 25–35%',   calOffset:-400, proteinPerLb:0.9,  carbPct:0.35, fatPct:0.30 },
-  recomp:    { label:'Recomp',    icon:'⚖️',  desc:'Maintenance calories · Lose fat + gain muscle',      detail:'Maint / -100–200 cal · Protein 1–1.2g/lb · Carbs 35–45% · Fat 25–35%',              calOffset:-150, proteinPerLb:1.1,  carbPct:0.40, fatPct:0.30 },
+  recomp:    { label:'Recomp',    icon:'⚖️',  desc:'Maintenance calories · Lose fat + gain muscle',      detail:'Maint / -100–200 cal · Protein 0.7g/lb · Carbs 40% · Fat 30%',                    calOffset:-150, proteinPerLb:0.7,  carbPct:0.40, fatPct:0.30 },
 };
 function computeTargets(TDEE, goal, wLbs) {
   const g = GOALS[goal];
   const calories = Math.round(TDEE + g.calOffset);
+  // Protein: g per lb of bodyweight (priority macro)
   const protein = Math.round(wLbs * g.proteinPerLb);
-  const remaining = calories - protein * 4;
-  const total = g.carbPct + g.fatPct;
-  const carbs = Math.round((remaining * (g.carbPct / total)) / 4);
-  const fat = Math.round((remaining * (g.fatPct / total)) / 9);
+  // Carbs and fat as % of total calories
+  const carbs = Math.round((calories * g.carbPct) / 4);
+  const fat   = Math.round((calories * g.fatPct)  / 9);
   return { calories, protein, carbs, fat };
 }
 function getFoodWeightInGrams() {

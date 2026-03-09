@@ -478,7 +478,7 @@ function renderSetup() {
         <div><label class="field-label">Age</label><input type="text" placeholder="30" value="${escHtml(p.age)}" inputmode="numeric" oninput="S.profile.age=this.value"></div>
         <div><label class="field-label">Sex</label>
           <select oninput="S.profile.gender=this.value">
-            <option value="" ${p.gender===''?'selected':''} disabled>Choose Selection</option>
+            <option value="" ${p.gender===''?'selected':''} disabled>Choose</option>
             <option value="male" ${p.gender==='male'?'selected':''}>Male</option>
             <option value="female" ${p.gender==='female'?'selected':''}>Female</option>
           </select>

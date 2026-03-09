@@ -729,7 +729,7 @@ function renderFoodResult() {
       <div class="amount-wrap">
         <input type="number" id="amountInput" value="${escHtml(S.foodWeightDisplay)}"
           placeholder="${defaultAmountForUnit(fu)}"
-          style="padding-right:52px" oninput="S.foodWeightDisplay=this.value;updatePreview()">
+          style="padding-right:52px" oninput="S.foodWeightDisplay=this.value;updatePreview()" onchange="S.foodWeightDisplay=this.value;updatePreview()">
         <span class="amount-unit" style="font-size:11px">${fu}</span>
       </div>
       <div class="preview-row" id="previewRow" style="${grams>0?'':'display:none'}">
@@ -993,6 +993,9 @@ function updatePreview() {
 
 function addEntry() {
   const f = S.scannedFood; if (!f) return;
+  // Always read live value from input in case oninput didn't fire (iOS scroll wheel)
+  const inputEl = document.getElementById('amountInput');
+  if (inputEl && inputEl.value) S.foodWeightDisplay = inputEl.value;
   const grams = getFoodWeightInGrams(); if (!grams) return;
   const ratio = grams / (f.serving||100);
   S.entries.push({ id:Date.now(), name:f.name, grams:Math.round(grams*10)/10, displayWeight:parseFloat(S.foodWeightDisplay), displayUnit:S.foodUnit,

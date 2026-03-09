@@ -729,7 +729,7 @@ function renderFoodResult() {
       <div class="amount-wrap">
         <input type="text" inputmode="decimal" id="amountInput" value="${escHtml(S.foodWeightDisplay)}"
           placeholder="${defaultAmountForUnit(fu)}"
-          style="padding-right:52px" oninput="updatePreview()">
+          style="padding-right:52px" oninput="updatePreview()" onblur="updatePreview()">
         <span class="amount-unit" style="font-size:11px">${fu}</span>
       </div>
       <div class="preview-row" id="previewRow" style="${grams>0?'':'display:none'}">
@@ -981,27 +981,26 @@ function useCustomFood() {
   S.showCustom = false; render();
 }
 
-let _previewTimer = null;
 function updatePreview() {
-  // Debounce: wait until user pauses typing before updating preview
-  // This prevents iOS from dismissing the keyboard on rapid DOM updates
-  clearTimeout(_previewTimer);
-  _previewTimer = setTimeout(() => {
-    const inputEl = document.getElementById('amountInput');
-    if (inputEl) S.foodWeightDisplay = inputEl.value;
-    const grams = getFoodWeightInGrams(), f = S.scannedFood;
-    if (!f) return;
-    const ratio = grams / (f.serving||100);
-    const row = document.getElementById('previewRow');
-    if (!row) return;
-    if (grams <= 0) { row.style.display='none'; return; }
-    row.style.display='flex';
-    row.innerHTML = `
-      <div class="preview-cell"><div class="preview-label">Cals</div><div class="preview-val" style="color:#3a86ff">${Math.round(f.calories*ratio)}</div></div>
-      <div class="preview-cell"><div class="preview-label">P</div><div class="preview-val" style="color:#ff6b6b">${Math.round(f.protein*ratio*10)/10}g</div></div>
-      <div class="preview-cell"><div class="preview-label">C</div><div class="preview-val" style="color:#ffd166">${Math.round(f.carbs*ratio*10)/10}g</div></div>
-      <div class="preview-cell"><div class="preview-label">F</div><div class="preview-val" style="color:#06d6a0">${Math.round(f.fat*ratio*10)/10}g</div></div>`;
-  }, 400);
+  // Only update the text values inside existing elements - never change innerHTML of parent
+  // or create/remove elements while keyboard is up, as iOS will dismiss the keyboard
+  const inputEl = document.getElementById('amountInput');
+  if (inputEl) S.foodWeightDisplay = inputEl.value;
+  const grams = getFoodWeightInGrams(), f = S.scannedFood;
+  if (!f) return;
+  const ratio = grams / (f.serving||100);
+  const row = document.getElementById('previewRow');
+  if (!row) return;
+  if (grams <= 0) { row.style.display='none'; return; }
+  row.style.display='flex';
+  // Update individual text nodes instead of replacing innerHTML
+  const cells = row.querySelectorAll('.preview-val');
+  if (cells.length === 4) {
+    cells[0].textContent = Math.round(f.calories*ratio);
+    cells[1].textContent = Math.round(f.protein*ratio*10)/10 + 'g';
+    cells[2].textContent = Math.round(f.carbs*ratio*10)/10 + 'g';
+    cells[3].textContent = Math.round(f.fat*ratio*10)/10 + 'g';
+  }
 }
 
 function addEntry() {

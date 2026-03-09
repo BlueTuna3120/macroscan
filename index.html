@@ -466,19 +466,19 @@ function renderSetup() {
       <div class="card-title">Your Profile</div>
       ${S.unit==='metric' ? `
         <div class="grid-2 mb-12">
-          <div><label class="field-label">Weight (kg)</label><input type="number" placeholder="75" value="${escHtml(p.weightKg)}" oninput="S.profile.weightKg=this.value"></div>
-          <div><label class="field-label">Height (cm)</label><input type="number" placeholder="178" value="${escHtml(p.heightCm)}" oninput="S.profile.heightCm=this.value"></div>
+          <div><label class="field-label">Weight (kg)</label><input type="text" placeholder="75" value="${escHtml(p.weightKg)}" inputmode="numeric" oninput="S.profile.weightKg=this.value"></div>
+          <div><label class="field-label">Height (cm)</label><input type="text" placeholder="178" value="${escHtml(p.heightCm)}" inputmode="numeric" oninput="S.profile.heightCm=this.value"></div>
         </div>` : `
         <div class="grid-3 mb-12">
-          <div><label class="field-label">Weight (lbs)</label><input type="number" placeholder="165" value="${escHtml(p.weightLbs)}" oninput="S.profile.weightLbs=this.value"></div>
-          <div><label class="field-label">Feet</label><input type="number" placeholder="5" value="${escHtml(p.heightFt)}" oninput="S.profile.heightFt=this.value"></div>
-          <div><label class="field-label">Inches</label><input type="number" placeholder="10" value="${escHtml(p.heightIn)}" oninput="S.profile.heightIn=this.value"></div>
+          <div><label class="field-label">Weight (lbs)</label><input type="text" placeholder="165" value="${escHtml(p.weightLbs)}" inputmode="numeric" oninput="S.profile.weightLbs=this.value"></div>
+          <div><label class="field-label">Feet</label><input type="text" placeholder="5" value="${escHtml(p.heightFt)}" inputmode="numeric" oninput="S.profile.heightFt=this.value"></div>
+          <div><label class="field-label">Inches</label><input type="text" placeholder="10" value="${escHtml(p.heightIn)}" inputmode="numeric" oninput="S.profile.heightIn=this.value"></div>
         </div>`}
       <div class="grid-2 mb-12">
-        <div><label class="field-label">Age</label><input type="number" placeholder="30" value="${escHtml(p.age)}" oninput="S.profile.age=this.value"></div>
+        <div><label class="field-label">Age</label><input type="text" placeholder="30" value="${escHtml(p.age)}" inputmode="numeric" oninput="S.profile.age=this.value"></div>
         <div><label class="field-label">Sex</label>
           <select oninput="S.profile.gender=this.value">
-            <option value="" ${p.gender===''?'selected':''} disabled>-Selection-</option>
+            <option value="" ${p.gender===''?'selected':''} disabled>Choose Selection</option>
             <option value="male" ${p.gender==='male'?'selected':''}>Male</option>
             <option value="female" ${p.gender==='female'?'selected':''}>Female</option>
           </select>

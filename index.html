@@ -395,6 +395,10 @@ function ringHTML(value, max, color, label, size=80) {
 
 // ── Render ─────────────────────────────────────────────────────────────
 function render() {
+  // If the amount input is focused (keyboard up on iOS), don't touch the DOM at all
+  const focused = document.activeElement;
+  if (focused && focused.id === 'amountInput') return;
+
   const totals = getTotals();
   renderHeader();
   if (S.screen === 'setup') renderSetup();
@@ -729,7 +733,8 @@ function renderFoodResult() {
       <div class="amount-wrap">
         <input type="text" inputmode="decimal" id="amountInput" value="${escHtml(S.foodWeightDisplay)}"
           placeholder="${defaultAmountForUnit(fu)}"
-          style="padding-right:52px" oninput="updatePreview()" onblur="updatePreview()">
+          autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+          style="padding-right:52px" >
         <span class="amount-unit" style="font-size:11px">${fu}</span>
       </div>
       <div class="preview-row" id="previewRow" style="${grams>0?'':'display:none'}">
@@ -982,30 +987,11 @@ function useCustomFood() {
 }
 
 function updatePreview() {
-  // Only update the text values inside existing elements - never change innerHTML of parent
-  // or create/remove elements while keyboard is up, as iOS will dismiss the keyboard
-  const inputEl = document.getElementById('amountInput');
-  if (inputEl) S.foodWeightDisplay = inputEl.value;
-  const grams = getFoodWeightInGrams(), f = S.scannedFood;
-  if (!f) return;
-  const ratio = grams / (f.serving||100);
-  const row = document.getElementById('previewRow');
-  if (!row) return;
-  if (grams <= 0) { row.style.display='none'; return; }
-  row.style.display='flex';
-  // Update individual text nodes instead of replacing innerHTML
-  const cells = row.querySelectorAll('.preview-val');
-  if (cells.length === 4) {
-    cells[0].textContent = Math.round(f.calories*ratio);
-    cells[1].textContent = Math.round(f.protein*ratio*10)/10 + 'g';
-    cells[2].textContent = Math.round(f.carbs*ratio*10)/10 + 'g';
-    cells[3].textContent = Math.round(f.fat*ratio*10)/10 + 'g';
-  }
+  // Intentionally empty - preview updates on Add to avoid iOS keyboard dismissal
 }
 
 function addEntry() {
   const f = S.scannedFood; if (!f) return;
-  // Always read live value from input in case oninput didn't fire (iOS scroll wheel)
   const inputEl = document.getElementById('amountInput');
   if (inputEl && inputEl.value) S.foodWeightDisplay = inputEl.value;
   const grams = getFoodWeightInGrams(); if (!grams) return;

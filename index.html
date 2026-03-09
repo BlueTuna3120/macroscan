@@ -501,6 +501,25 @@ function renderSetup() {
 
     ${S.setupError ? `<div class="error-box">⚠️ ${escHtml(S.setupError)}</div>` : ''}
     <button class="btn-primary" onclick="handleSetup()">Calculate My Macros →</button>
+
+    <!-- Data Management Card -->
+    <div class="card">
+      <div class="card-title">Data Management</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div>
+          <div style="font-size:12px;color:#8891a8;margin-bottom:8px">Backup your food log and profile to a JSON file stored on your device.</div>
+          <button class="btn-secondary" style="width:100%" onclick="exportData()">⬇️ Export Backup</button>
+        </div>
+        <div>
+          <div style="font-size:12px;color:#8891a8;margin-bottom:8px">Restore a previously exported backup file.</div>
+          <button class="btn-secondary" style="width:100%" onclick="importData()">⬆️ Import Backup</button>
+        </div>
+        <div style="border-top:1px solid #1e2535;padding-top:10px">
+          <div style="font-size:12px;color:#8891a8;margin-bottom:8px">Get the latest version from GitHub. Your data is exported first so nothing is lost.</div>
+          <button class="btn-secondary" style="width:100%" onclick="updateApp()">🔄 Update App</button>
+        </div>
+      </div>
+    </div>
   `;
 }
 
@@ -957,6 +976,79 @@ function addEntry() {
 }
 
 function deleteEntry(i) { S.entries.splice(i,1); save(); render(); }
+
+// ── Export / Import / Update ──────────────────────────────────────────
+function exportData() {
+  const dates = getLoggedDates();
+  const entries = {};
+  dates.forEach(d => { entries[d] = getEntriesForDate(d); });
+  // Also include today if not yet in dates list
+  if (S.entries.length > 0 && !entries[TODAY]) entries[TODAY] = S.entries;
+  const payload = {
+    version: APP_VERSION,
+    exportedAt: new Date().toISOString(),
+    profile: S.profile,
+    unit: S.unit,
+    foodUnit: S.foodUnit,
+    targets: S.targets,
+    dates,
+    entries,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `macroscan-backup-${TODAY}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json,application/json';
+  input.onchange = async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if (!data.profile || !data.entries) throw new Error('Invalid backup file');
+      // Restore profile & settings
+      S.profile = data.profile;
+      S.unit = data.unit || 'imperial';
+      S.foodUnit = data.foodUnit || 'g';
+      S.targets = data.targets || null;
+      // Restore all daily entries to localStorage
+      Object.entries(data.entries).forEach(([date, ents]) => {
+        localStorage.setItem('ms:entries:' + date, JSON.stringify(ents));
+      });
+      localStorage.setItem('ms:dates', JSON.stringify(data.dates || []));
+      // Reload today's entries
+      const todayEntries = data.entries[TODAY];
+      S.entries = todayEntries || [];
+      save();
+      S.screen = S.targets ? 'summary' : 'setup';
+      alert('✅ Data restored successfully!');
+      render();
+    } catch(err) {
+      alert('❌ Could not restore: ' + err.message);
+    }
+  };
+  input.click();
+}
+
+function updateApp() {
+  // Step 1: export their data as JSON
+  exportData();
+  // Step 2: after a short delay, hard reload to get latest code from GitHub Pages
+  setTimeout(() => {
+    const ok = confirm('Your data has been downloaded.\n\nTap OK to reload the app and get the latest version.\n\nAfter it loads, go to Settings → Import Backup to restore your data.');
+    if (ok) {
+      window.location.href = window.location.href.split('?')[0] + '?v=' + Date.now();
+    }
+  }, 800);
+}
 
 // ── Boot ───────────────────────────────────────────────────────────────
 load();

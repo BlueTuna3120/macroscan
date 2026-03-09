@@ -478,7 +478,7 @@ function renderSetup() {
         <div><label class="field-label">Age</label><input type="text" placeholder="30" value="${escHtml(p.age)}" inputmode="numeric" oninput="S.profile.age=this.value"></div>
         <div><label class="field-label">Sex</label>
           <select oninput="S.profile.gender=this.value">
-            <option value="" ${p.gender===''?'selected':''} disabled>Choose</option>
+            <option value="" ${p.gender===''?'selected':''} disabled>Choose Selection</option>
             <option value="male" ${p.gender==='male'?'selected':''}>Male</option>
             <option value="female" ${p.gender==='female'?'selected':''}>Female</option>
           </select>
@@ -729,7 +729,7 @@ function renderFoodResult() {
       <div class="amount-wrap">
         <input type="text" inputmode="decimal" id="amountInput" value="${escHtml(S.foodWeightDisplay)}"
           placeholder="${defaultAmountForUnit(fu)}"
-          style="padding-right:52px" oninput="S.foodWeightDisplay=this.value;updatePreview()" onchange="S.foodWeightDisplay=this.value;updatePreview()">
+          style="padding-right:52px" oninput="updatePreview()">
         <span class="amount-unit" style="font-size:11px">${fu}</span>
       </div>
       <div class="preview-row" id="previewRow" style="${grams>0?'':'display:none'}">
@@ -833,6 +833,7 @@ function scannerModalHTML() {
 }
 
 function openScanner() {
+  S.scannedFood = null; S.searchResults = null; S.foodQuery = '';
   S.scannerOpen = true; S.scannerError = ''; S.scannerStatus = 'Tap Start Camera to begin.';
   render();
 }
@@ -978,19 +979,27 @@ function useCustomFood() {
   S.showCustom = false; render();
 }
 
+let _previewTimer = null;
 function updatePreview() {
-  const grams = getFoodWeightInGrams(), f = S.scannedFood;
-  if (!f) return;
-  const ratio = grams / (f.serving||100);
-  const row = document.getElementById('previewRow');
-  if (!row) return;
-  if (grams <= 0) { row.style.display='none'; return; }
-  row.style.display='flex';
-  row.innerHTML = `
-    <div class="preview-cell"><div class="preview-label">Cals</div><div class="preview-val" style="color:#3a86ff">${Math.round(f.calories*ratio)}</div></div>
-    <div class="preview-cell"><div class="preview-label">P</div><div class="preview-val" style="color:#ff6b6b">${Math.round(f.protein*ratio*10)/10}g</div></div>
-    <div class="preview-cell"><div class="preview-label">C</div><div class="preview-val" style="color:#ffd166">${Math.round(f.carbs*ratio*10)/10}g</div></div>
-    <div class="preview-cell"><div class="preview-label">F</div><div class="preview-val" style="color:#06d6a0">${Math.round(f.fat*ratio*10)/10}g</div></div>`;
+  // Debounce: wait until user pauses typing before updating preview
+  // This prevents iOS from dismissing the keyboard on rapid DOM updates
+  clearTimeout(_previewTimer);
+  _previewTimer = setTimeout(() => {
+    const inputEl = document.getElementById('amountInput');
+    if (inputEl) S.foodWeightDisplay = inputEl.value;
+    const grams = getFoodWeightInGrams(), f = S.scannedFood;
+    if (!f) return;
+    const ratio = grams / (f.serving||100);
+    const row = document.getElementById('previewRow');
+    if (!row) return;
+    if (grams <= 0) { row.style.display='none'; return; }
+    row.style.display='flex';
+    row.innerHTML = `
+      <div class="preview-cell"><div class="preview-label">Cals</div><div class="preview-val" style="color:#3a86ff">${Math.round(f.calories*ratio)}</div></div>
+      <div class="preview-cell"><div class="preview-label">P</div><div class="preview-val" style="color:#ff6b6b">${Math.round(f.protein*ratio*10)/10}g</div></div>
+      <div class="preview-cell"><div class="preview-label">C</div><div class="preview-val" style="color:#ffd166">${Math.round(f.carbs*ratio*10)/10}g</div></div>
+      <div class="preview-cell"><div class="preview-label">F</div><div class="preview-val" style="color:#06d6a0">${Math.round(f.fat*ratio*10)/10}g</div></div>`;
+  }, 400);
 }
 
 function addEntry() {

@@ -223,7 +223,7 @@ const S = {
   screen: 'setup',
   unit: 'imperial',
   foodUnit: 'g',
-  profile: { weightKg:'', heightCm:'', weightLbs:'', heightFt:'', heightIn:'', age:'', gender:'male', activity:'moderate', goal:'lean_bulk' },
+  profile: { weightKg:'', heightCm:'', weightLbs:'', heightFt:'', heightIn:'', age:'', gender:'', activity:'moderate', goal:'lean_bulk' },
   targets: null,
   entries: [],
   setupError: '',
@@ -476,8 +476,9 @@ function renderSetup() {
         </div>`}
       <div class="grid-2 mb-12">
         <div><label class="field-label">Age</label><input type="number" placeholder="30" value="${escHtml(p.age)}" oninput="S.profile.age=this.value"></div>
-        <div><label class="field-label">Gender</label>
+        <div><label class="field-label">Sex</label>
           <select oninput="S.profile.gender=this.value">
+            <option value="" ${p.gender===''?'selected':''} disabled>Choose Selection</option>
             <option value="male" ${p.gender==='male'?'selected':''}>Male</option>
             <option value="female" ${p.gender==='female'?'selected':''}>Female</option>
           </select>
@@ -927,6 +928,7 @@ function handleSetup() {
   S.setupError = '';
   let wKg, hCm;
   const p = S.profile;
+  if (!p.gender) { S.setupError = 'Please select a biological sex for accurate BMR calculation.'; render(); return; }
   if (S.unit === 'metric') {
     const rw = parseFloat(p.weightKg), rh = parseFloat(p.heightCm);
     if (!rw||rw<=0) { S.setupError='Please enter a valid weight.'; render(); return; }

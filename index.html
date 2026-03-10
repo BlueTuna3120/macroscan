@@ -218,7 +218,11 @@
 
 <script>
 // ── State ──────────────────────────────────────────────────────────────
-const TODAY = new Date().toISOString().slice(0,10);
+function getLocalDateStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+const TODAY = getLocalDateStr();
 const S = {
   screen: 'setup',
   unit: 'imperial',
@@ -564,7 +568,7 @@ function renderSummary(totals) {
       </div>
     </div>
     <div class="saved-badge"><span class="saved-dot">●</span><span class="saved-text">Profile & log saved automatically</span></div>
-    <button class="btn-primary" onclick="goSearch()">🔍 Search Food</button>
+    <button class="btn-primary" onclick="S.scannedFood=null;S.searchResults=null;goSearch()">🔍 Search Food</button>
     ${renderWeeklyChart()}
     ${S.entries.length > 0 ? `
     <div class="card">
@@ -928,7 +932,7 @@ function promptBarcode() {
 // ── Handlers ───────────────────────────────────────────────────────────
 function setUnit(u) { S.unit = u; save(); render(); }
 function setFoodUnit(u) { S.foodUnit = u; S.foodWeightDisplay = defaultAmountForUnit(u); render(); }
-function goSearch() { stopScanner(); S.scannerOpen=false; S.screen='search'; S.scannedFood=null; S.searchError=''; S.searchResults=null; S.searchLoading=false; render(); }
+function goSearch() { stopScanner(); S.scannerOpen=false; S.screen='search'; S.scannedFood=null; S.searchError=''; S.searchResults=null; S.searchLoading=false; S.scannerManualCode=''; render(); }
 function toggleCustom() { S.showCustom = !S.showCustom; render(); }
 
 function handleSetup() {

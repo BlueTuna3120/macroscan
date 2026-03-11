@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="MacroScan">
-<link rel="apple-touch-icon" href="IMG_9455.jpeg">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="manifest" href="site.webmanifest">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
@@ -185,7 +185,10 @@
       <div class="logo"><span>macro</span>scan</div>
       <div class="logo-sub" id="headerSub">Setup Required</div>
     </div>
-    <div id="headerBtns" style="display:flex;gap:8px;"></div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span id="syncIndicator" style="display:none;font-size:11px;padding:3px 8px;border-radius:6px;font-weight:600"></span>
+      <div id="headerBtns" style="display:flex;gap:8px;"></div>
+    </div>
   </div>
   <div class="content" id="content"></div>
 </div>
@@ -211,7 +214,9 @@ const PROFILE_DEFAULTS = {
 };
 
 const S = {
-  screen: 'setup',
+  screen: 'users',
+  currentUser: '',
+  users: [],
   unit: 'imperial',
   foodUnit: 'g',
   profile: { ...PROFILE_DEFAULTS },
@@ -236,49 +241,229 @@ const S = {
   weightInput: '',
   _lastLookupId: 0,
   _searchId: 0,
+  _syncState: 'idle',  // idle | pending | syncing | ok | error
 };
 
 // ── Storage ───────────────────────────────────────────────────────────────
+// All keys are namespaced per user: ms:profile:blake, ms:entries:blake:2026-03-11, etc.
+
 function save() {
+  if (!S.currentUser) return;
   try {
-    localStorage.setItem('ms:profile',  JSON.stringify(S.profile));
-    localStorage.setItem('ms:unit',     S.unit);
-    localStorage.setItem('ms:foodUnit', S.foodUnit);
-    if (S.targets) localStorage.setItem('ms:targets', JSON.stringify(S.targets));
-    localStorage.setItem('ms:entries:' + TODAY, JSON.stringify(S.entries));
+    const u = S.currentUser;
+    localStorage.setItem(`ms:profile:${u}`,  JSON.stringify(S.profile));
+    localStorage.setItem(`ms:unit:${u}`,     S.unit);
+    localStorage.setItem(`ms:foodUnit:${u}`, S.foodUnit);
+    if (S.targets) localStorage.setItem(`ms:targets:${u}`, JSON.stringify(S.targets));
+    localStorage.setItem(`ms:entries:${u}:${TODAY}`, JSON.stringify(S.entries));
     let dates = getLoggedDates();
     if (S.entries.length > 0 && !dates.includes(TODAY)) dates.unshift(TODAY);
     if (S.entries.length === 0) dates = dates.filter(d => d !== TODAY);
-    localStorage.setItem('ms:dates', JSON.stringify(dates));
+    localStorage.setItem(`ms:dates:${u}`, JSON.stringify(dates));
+    localStorage.setItem(`ms:modified:${u}`, Date.now().toString());
   } catch(e) {}
+  schedulePush();
 }
 
-function load() {
+function _loadUserData(username) {
   try {
-    const p = localStorage.getItem('ms:profile');
+    S.profile = { ...PROFILE_DEFAULTS };
+    S.targets = null; S.entries = [];
+    S.unit = 'imperial'; S.foodUnit = 'g';
+    const p = localStorage.getItem(`ms:profile:${username}`);
     if (p) S.profile = { ...PROFILE_DEFAULTS, ...JSON.parse(p) };
     if (S.profile.goal === 'recomp') S.profile.goal = 'fat_loss';
-    const u = localStorage.getItem('ms:unit'); if (u) S.unit = u;
-    const fu = localStorage.getItem('ms:foodUnit'); if (fu) S.foodUnit = fu;
-    const t = localStorage.getItem('ms:targets');
-    if (t) { S.targets = JSON.parse(t); S.screen = 'summary'; }
-    const e = localStorage.getItem('ms:entries:' + TODAY);
+    const u = localStorage.getItem(`ms:unit:${username}`);     if (u)  S.unit = u;
+    const fu = localStorage.getItem(`ms:foodUnit:${username}`); if (fu) S.foodUnit = fu;
+    const t = localStorage.getItem(`ms:targets:${username}`);
+    if (t) { S.targets = JSON.parse(t); S.screen = 'summary'; } else { S.screen = 'setup'; }
+    const e = localStorage.getItem(`ms:entries:${username}:${TODAY}`);
     if (e) S.entries = JSON.parse(e);
     S.foodWeightDisplay = defaultAmountForUnit(S.foodUnit);
   } catch(e) {}
 }
 
+function load() {
+  try {
+    S.users = JSON.parse(localStorage.getItem('ms:users') || '[]');
+    S.currentUser = localStorage.getItem('ms:current_user') || '';
+  } catch(e) {}
+
+  // Migrate legacy single-user data (pre-multiuser) → user named "Me"
+  if (!S.users.length && localStorage.getItem('ms:profile')) {
+    _migrateLegacy(); return;
+  }
+
+  if (!S.currentUser || !S.users.includes(S.currentUser)) {
+    S.screen = 'users'; return;
+  }
+  _loadUserData(S.currentUser);
+}
+
+function _migrateLegacy() {
+  const username = 'Me';
+  S.users = [username]; S.currentUser = username;
+  const profile  = localStorage.getItem('ms:profile');
+  const unit     = localStorage.getItem('ms:unit');
+  const foodUnit = localStorage.getItem('ms:foodUnit');
+  const targets  = localStorage.getItem('ms:targets');
+  const weightLog = localStorage.getItem('ms:weightlog');
+  const dates = JSON.parse(localStorage.getItem('ms:dates') || '[]');
+  if (profile)  localStorage.setItem(`ms:profile:${username}`,  profile);
+  if (unit)     localStorage.setItem(`ms:unit:${username}`,     unit);
+  if (foodUnit) localStorage.setItem(`ms:foodUnit:${username}`, foodUnit);
+  if (targets)  localStorage.setItem(`ms:targets:${username}`,  targets);
+  if (weightLog) localStorage.setItem(`ms:weightlog:${username}`, weightLog);
+  localStorage.setItem(`ms:dates:${username}`, JSON.stringify(dates));
+  dates.forEach(date => {
+    const e = localStorage.getItem('ms:entries:' + date);
+    if (e) localStorage.setItem(`ms:entries:${username}:${date}`, e);
+  });
+  localStorage.setItem('ms:users', JSON.stringify(S.users));
+  localStorage.setItem('ms:current_user', username);
+  _loadUserData(username);
+}
+
 function getLoggedDates() {
-  try { return JSON.parse(localStorage.getItem('ms:dates') || '[]'); } catch(e) { return []; }
+  if (!S.currentUser) return [];
+  try { return JSON.parse(localStorage.getItem(`ms:dates:${S.currentUser}`) || '[]'); } catch(e) { return []; }
 }
 function getEntriesForDate(date) {
-  try { return JSON.parse(localStorage.getItem('ms:entries:' + date) || '[]'); } catch(e) { return []; }
+  if (!S.currentUser) return [];
+  try { return JSON.parse(localStorage.getItem(`ms:entries:${S.currentUser}:${date}`) || '[]'); } catch(e) { return []; }
 }
 function getWeightLog() {
-  try { return JSON.parse(localStorage.getItem('ms:weightlog') || '[]'); } catch(e) { return []; }
+  if (!S.currentUser) return [];
+  try { return JSON.parse(localStorage.getItem(`ms:weightlog:${S.currentUser}`) || '[]'); } catch(e) { return []; }
 }
 function saveWeightLog(log) {
-  try { localStorage.setItem('ms:weightlog', JSON.stringify(log)); } catch(e) {}
+  if (!S.currentUser) return;
+  try { localStorage.setItem(`ms:weightlog:${S.currentUser}`, JSON.stringify(log)); } catch(e) {}
+}
+
+// ── Auto Sync ─────────────────────────────────────────────────────────────
+// save() stamps ms:modified:username and calls schedulePush().
+// schedulePush() debounces: 4 s of inactivity → push to repo (if token set).
+// On boot, autoSyncLoad() pulls the repo file and merges any user whose
+// repo lastModified is newer than the local ms:modified stamp.
+
+let _pushTimer = null;
+
+function setSyncState(state) {
+  S._syncState = state;
+  const el = document.getElementById('syncIndicator');
+  if (!el) return;
+  const map = {
+    idle:    { text: '',          bg: '',        color: '',        show: false },
+    pending: { text: '● unsaved', bg: '#2d2200', color: '#f6ad55', show: true  },
+    syncing: { text: '↑ syncing', bg: '#0f1f35', color: '#3a86ff', show: true  },
+    ok:      { text: '✓ synced',  bg: '#0d1f07', color: '#4ade80', show: true  },
+    error:   { text: '⚠ sync err',bg: '#2d1a1a', color: '#ff6b6b', show: true  },
+  };
+  const s = map[state] || map.idle;
+  el.style.display  = s.show ? '' : 'none';
+  el.style.background = s.bg;
+  el.style.color      = s.color;
+  el.textContent      = s.text;
+  // Auto-clear 'ok' after 3 s so it doesn't clutter the header permanently
+  if (state === 'ok') setTimeout(() => { if (S._syncState === 'ok') setSyncState('idle'); }, 3000);
+}
+
+function schedulePush() {
+  if (!getGhToken()) return; // no token — localStorage-only mode
+  setSyncState('pending');
+  clearTimeout(_pushTimer);
+  _pushTimer = setTimeout(async () => {
+    setSyncState('syncing');
+    const ok = await _silentPush();
+    setSyncState(ok ? 'ok' : 'error');
+  }, 4000);
+}
+
+// Silent push — returns true on success, false on failure. No UI status text.
+async function _silentPush() {
+  const token = getGhToken();
+  if (!token) return false;
+  const info = _repoInfo();
+  if (!info) return false;
+  try {
+    const apiUrl = `https://api.github.com/repos/${info.owner}/${info.repo}/contents/user-data.json`;
+    const headers = { Authorization: `token ${token}`, 'Content-Type': 'application/json' };
+    let sha;
+    try { const r = await fetch(apiUrl, { headers }); if (r.ok) sha = (await r.json()).sha; } catch(_) {}
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify(buildPayload(), null, 2))));
+    const res = await fetch(apiUrl, {
+      method: 'PUT', headers,
+      body: JSON.stringify({ message: 'sync: update user-data.json', content, ...(sha ? { sha } : {}) }),
+    });
+    return res.ok;
+  } catch(_) { return false; }
+}
+
+// Called once at boot. Fetches user-data.json and merges any user whose
+// repo lastModified is strictly newer than what we have locally.
+async function autoSyncLoad() {
+  try {
+    const res = await fetch('./user-data.json?t=' + Date.now());
+    if (!res.ok) return; // no file yet — first run
+    const data = await res.json();
+    if (!data.users) return; // old single-user format; skip silent merge
+    let updated = false;
+    Object.entries(data.users).forEach(([username, ud]) => {
+      const localTs  = parseInt(localStorage.getItem(`ms:modified:${username}`) || '0', 10);
+      const repoTs   = parseInt(ud.lastModified || '0', 10);
+      if (repoTs > localTs) {
+        _applyUserData(username, ud);
+        if (!S.users.includes(username)) S.users.push(username);
+        updated = true;
+      }
+    });
+    if (updated) {
+      localStorage.setItem('ms:users', JSON.stringify(S.users));
+      if (S.currentUser) _loadUserData(S.currentUser);
+      render();
+    }
+  } catch(_) {} // network down / not on Pages — silent fail
+}
+
+// ── User Management ────────────────────────────────────────────────────────
+function createUser(rawName) {
+  const name = rawName.trim();
+  if (!name) return;
+  if (S.users.map(u => u.toLowerCase()).includes(name.toLowerCase())) {
+    alert(`A profile named "${name}" already exists.`); return;
+  }
+  S.users.push(name);
+  localStorage.setItem('ms:users', JSON.stringify(S.users));
+  switchUser(name);
+}
+
+function switchUser(username) {
+  if (!S.users.includes(username)) return;
+  stopScanner(); S.scannerOpen = false;
+  S.scannedFood = null; S.foodReady = false;
+  S.searchResults = null; S.searchLoading = false;
+  S.searchError = ''; S.foodQuery = '';
+  S.currentUser = username;
+  localStorage.setItem('ms:current_user', username);
+  _loadUserData(username);
+  render();
+}
+
+function deleteCurrentUser() {
+  if (!S.currentUser) return;
+  if (!confirm(`Delete profile "${S.currentUser}" and all their data? This cannot be undone.`)) return;
+  const u = S.currentUser;
+  // Remove all keys for this user
+  const allKeys = Object.keys(localStorage).filter(k => k.startsWith(`ms:`) && k.includes(`:${u}`));
+  allKeys.forEach(k => localStorage.removeItem(k));
+  S.users = S.users.filter(x => x !== u);
+  localStorage.setItem('ms:users', JSON.stringify(S.users));
+  S.currentUser = '';
+  localStorage.removeItem('ms:current_user');
+  S.profile = { ...PROFILE_DEFAULTS }; S.targets = null; S.entries = [];
+  S.screen = 'users';
+  render();
 }
 
 // ── Math ──────────────────────────────────────────────────────────────────
@@ -429,7 +614,8 @@ function render() {
 
   renderHeader();
 
-  if (S.screen === 'setup') renderSetup();
+  if (S.screen === 'users')   renderUsers();
+  else if (S.screen === 'setup') renderSetup();
   else if (S.screen === 'summary') renderSummary(getTotals());
   else if (S.screen === 'search') {
     if (S.scannedFood && S.foodReady) {
@@ -458,6 +644,8 @@ function renderNav() {
     nav.id = 'nav-tabs'; nav.className = 'nav-tabs';
     document.getElementById('app').appendChild(nav);
   }
+  // Hide nav on users screen
+  if (S.screen === 'users') { nav.innerHTML = ''; return; }
   nav.innerHTML = [
     { id:'summary', icon:'📊', label:'Today'    },
     { id:'history', icon:'📅', label:'History'  },
@@ -480,8 +668,12 @@ function navTo(s) {
 }
 
 function renderHeader() {
-  document.getElementById('headerSub').textContent =
-    S.targets ? GOALS[S.profile.goal].label.toUpperCase() : 'SETUP REQUIRED';
+  const sub = document.getElementById('headerSub');
+  if (S.screen === 'users' || !S.currentUser) {
+    sub.textContent = 'SELECT PROFILE';
+  } else {
+    sub.textContent = S.targets ? GOALS[S.profile.goal].label.toUpperCase() : 'SETUP REQUIRED';
+  }
   const btns = document.getElementById('headerBtns');
   btns.innerHTML = '';
   if (S.screen === 'search') {
@@ -493,13 +685,72 @@ function renderHeader() {
       render();
     };
     btns.appendChild(b);
+  } else if (S.currentUser && S.screen !== 'users') {
+    const chip = document.createElement('button');
+    chip.className = 'btn-icon';
+    chip.innerHTML = `👤 ${escHtml(S.currentUser)}`;
+    chip.title = 'Switch profile';
+    chip.onclick = () => { S.screen = 'users'; render(); };
+    btns.appendChild(chip);
   }
+}
+
+// ── Users Screen ──────────────────────────────────────────────────────────
+function renderUsers() {
+  function userMeta(username) {
+    try {
+      const p = JSON.parse(localStorage.getItem(`ms:profile:${username}`) || '{}');
+      const hasTargets = !!localStorage.getItem(`ms:targets:${username}`);
+      const dates = JSON.parse(localStorage.getItem(`ms:dates:${username}`) || '[]');
+      const goal = hasTargets && p.goal && GOALS[p.goal] ? GOALS[p.goal].label : null;
+      const lastDate = dates[0] || null;
+      return { goal, lastDate, hasTargets };
+    } catch(e) { return {}; }
+  }
+
+  const cards = S.users.map(u => {
+    const { goal, lastDate } = userMeta(u);
+    const isActive = u === S.currentUser;
+    return `
+      <div onclick="switchUser('${escHtml(u)}')"
+        style="background:linear-gradient(135deg,#1a1f2e,#131824);border-radius:14px;
+               padding:16px 18px;border:2px solid ${isActive ? '#3a86ff' : '#1e2535'};
+               cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px">
+        <div>
+          <div style="font-size:16px;font-weight:700">${escHtml(u)}${isActive ? ' <span style="font-size:11px;color:#3a86ff;font-weight:600">ACTIVE</span>' : ''}</div>
+          <div style="font-size:12px;color:#6b7a99;margin-top:3px">
+            ${goal ? goal : 'Profile setup pending'}${lastDate ? ` · Last log ${formatDate(lastDate)}` : ''}
+          </div>
+        </div>
+        <div style="font-size:18px;color:#4a5568">→</div>
+      </div>`;
+  }).join('');
+
+  document.getElementById('content').innerHTML = `
+    <div style="text-align:center;padding:10px 0 24px">
+      <div style="font-size:28px;margin-bottom:10px">👤</div>
+      <div style="font-size:20px;font-weight:700;margin-bottom:4px">Who's logging today?</div>
+      <div style="font-size:13px;color:#6b7a99">Select your profile or add a new one</div>
+    </div>
+    ${S.users.length ? `<div style="display:flex;flex-direction:column;gap:10px">${cards}</div>` : ''}
+    <div class="card" style="margin-top:${S.users.length ? '10' : '0'}px">
+      <div class="card-title">Add New Profile</div>
+      <label class="field-label">Name</label>
+      <input type="text" id="newUserInput" placeholder="e.g. Blake, John…" maxlength="30"
+        style="margin-bottom:10px"
+        onkeydown="if(event.key==='Enter')createUser(this.value)">
+      <button class="btn-primary" onclick="createUser(document.getElementById('newUserInput').value)">Create Profile →</button>
+    </div>`;
 }
 
 // ── Setup ─────────────────────────────────────────────────────────────────
 function renderSetup() {
   const p = S.profile;
   document.getElementById('content').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0 8px">
+      <div style="font-size:13px;color:#6b7a99">Profile: <strong style="color:#e2e8f0">${escHtml(S.currentUser)}</strong></div>
+      <button class="btn-small" onclick="S.screen='users';render()">Switch Profile</button>
+    </div>
     <div class="card">
       <div class="section-label">Measurement System</div>
       <div class="toggle-group">
@@ -576,6 +827,32 @@ function renderSetup() {
           <button class="btn-secondary" style="width:100%" onclick="updateApp()">🔄 Update App</button>
         </div>
       </div>
+    </div>
+    <div class="card">
+      <div class="card-title">☁️ Auto Sync</div>
+      <div style="font-size:12px;color:#8891a8;margin-bottom:12px;line-height:1.6">
+        Data syncs automatically after every save. On load, the app pulls any
+        updates from teammates. Paste a GitHub token with
+        <strong style="color:#e2e8f0">Contents: Read &amp; Write</strong> on this repo
+        to enable — create one at <span style="color:#3a86ff">github.com/settings/tokens</span>.
+      </div>
+      <div class="mb-12">
+        <label class="field-label">GitHub Token</label>
+        <input type="password" id="ghTokenInput" placeholder="ghp_… (leave blank to disable sync)"
+          value="${escHtml(getGhToken())}" autocomplete="off"
+          onchange="localStorage.setItem('ms:gh_token',this.value.trim());setSyncState('idle')">
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn-secondary" style="flex:1" onclick="pullFromRepo()">⬇ Pull now</button>
+        <button class="btn-secondary" style="flex:1" onclick="pushToRepo()">⬆ Push now</button>
+      </div>
+      <div id="syncStatus" style="margin-top:10px;font-size:12px;min-height:18px"></div>
+    </div>
+    <div style="text-align:center;padding:8px 0 4px">
+      <button onclick="deleteCurrentUser()"
+        style="background:none;border:none;color:#4a5568;font-size:12px;cursor:pointer;text-decoration:underline;font-family:inherit">
+        Delete profile "${escHtml(S.currentUser)}"
+      </button>
     </div>`;
 }
 
@@ -588,7 +865,7 @@ function weightReminderHTML() {
   const profileWeight = S.unit === 'imperial' ? parseFloat(S.profile.weightLbs) : parseFloat(S.profile.weightKg);
   if (!profileWeight) return '';
   const diff = Math.abs(profileWeight - lastLogged);
-  if (diff < 8) return '';
+  if (diff < (S.unit === 'imperial' ? 8 : 3.5)) return '';
   const unit = S.unit === 'imperial' ? 'lbs' : 'kg';
   return `<div style="background:linear-gradient(135deg,#2d1f00,#3d2a00);border:1px solid #f6ad55;border-radius:14px;padding:14px 16px;display:flex;gap:12px;align-items:flex-start">
     <div style="font-size:20px">⚖️</div>
@@ -797,6 +1074,25 @@ function selectSearchResult(i) {
 }
 
 // ── Food Result Screen ────────────────────────────────────────────────────
+// Directly update the preview region without a full render — keeps iOS keyboard open
+function updateAmountPreview(val) {
+  S.foodWeightDisplay = val;
+  const f = S.scannedFood;
+  if (!f) return;
+  const grams = unitToGrams(parseFloat(val) || 0, S.foodUnit);
+  const pr = document.querySelector('.preview-row');
+  if (!pr) return;
+  if (grams <= 0) { pr.style.display = 'none'; return; }
+  pr.style.display = '';
+  const ratio = grams / 100;
+  const cells = pr.querySelectorAll('.preview-val');
+  if (cells.length < 4) return;
+  cells[0].textContent = Math.round(f.calories * ratio);
+  cells[1].textContent = (Math.round(f.protein * ratio * 10) / 10) + 'g';
+  cells[2].textContent = (Math.round(f.carbs   * ratio * 10) / 10) + 'g';
+  cells[3].textContent = (Math.round(f.fat     * ratio * 10) / 10) + 'g';
+}
+
 // FIX: ratio is always grams/100 because all stored values are per 100g
 function renderFoodResult() {
   const f = S.scannedFood, fu = S.foodUnit;
@@ -844,7 +1140,7 @@ function renderFoodResult() {
           placeholder="${defaultAmountForUnit(fu)}"
           autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
           style="padding-right:64px"
-          oninput="S.foodWeightDisplay=this.value">
+          oninput="updateAmountPreview(this.value)">
         <span class="amount-unit" style="font-size:10px;max-width:58px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(unitLabel)}</span>
       </div>
       <div class="preview-row" style="${showPreview?'':'display:none'}">
@@ -978,6 +1274,8 @@ function renderHistory() {
   let dates = getLoggedDates();
   if (S.entries.length > 0 && !dates.includes(TODAY)) dates.unshift(TODAY);
   if (S.entries.length === 0) dates = dates.filter(d => d !== TODAY);
+  // Filter out stale dates that have no entries (e.g. after clearing old days)
+  dates = dates.filter(d => d === TODAY ? S.entries.length > 0 : getEntriesForDate(d).length > 0);
   if (!dates.length) {
     document.getElementById('content').innerHTML = `
       <div class="hist-empty">
@@ -1253,11 +1551,71 @@ function addEntry() {
 function deleteEntry(i){S.entries.splice(i,1);save();render();}
 
 // ── Export / Import ───────────────────────────────────────────────────────
+// buildPayload() exports ALL users so a single push/pull covers the whole group.
 function buildPayload() {
-  const dates=getLoggedDates(),entries={};
-  dates.forEach(d=>{entries[d]=getEntriesForDate(d);});
-  if(S.entries.length>0&&!entries[TODAY])entries[TODAY]=S.entries;
-  return{version:APP_VERSION,exportedAt:new Date().toISOString(),profile:S.profile,unit:S.unit,foodUnit:S.foodUnit,targets:S.targets,dates,entries,weightLog:getWeightLog()};
+  const users = {};
+  S.users.forEach(username => {
+    const dates = JSON.parse(localStorage.getItem(`ms:dates:${username}`) || '[]');
+    const entries = {};
+    dates.forEach(d => {
+      entries[d] = JSON.parse(localStorage.getItem(`ms:entries:${username}:${d}`) || '[]');
+    });
+    // Include today's in-memory entries for the active user even if not yet saved
+    if (username === S.currentUser && S.entries.length > 0 && !entries[TODAY]) {
+      entries[TODAY] = S.entries;
+      if (!dates.includes(TODAY)) dates.unshift(TODAY);
+    }
+    users[username] = {
+      profile:      JSON.parse(localStorage.getItem(`ms:profile:${username}`)  || 'null') || PROFILE_DEFAULTS,
+      targets:      JSON.parse(localStorage.getItem(`ms:targets:${username}`)  || 'null'),
+      unit:         localStorage.getItem(`ms:unit:${username}`)     || 'imperial',
+      foodUnit:     localStorage.getItem(`ms:foodUnit:${username}`) || 'g',
+      lastModified: parseInt(localStorage.getItem(`ms:modified:${username}`) || '0', 10),
+      dates, entries,
+      weightLog:    JSON.parse(localStorage.getItem(`ms:weightlog:${username}`) || '[]'),
+    };
+  });
+  return { version: APP_VERSION, exportedAt: new Date().toISOString(), users };
+}
+
+function _applyUserData(username, ud) {
+  if (!S.users.includes(username)) { S.users.push(username); }
+  if (ud.profile)  localStorage.setItem(`ms:profile:${username}`,  JSON.stringify({ ...PROFILE_DEFAULTS, ...ud.profile }));
+  if (ud.targets)  localStorage.setItem(`ms:targets:${username}`,  JSON.stringify(ud.targets));
+  if (ud.unit)     localStorage.setItem(`ms:unit:${username}`,     ud.unit);
+  if (ud.foodUnit) localStorage.setItem(`ms:foodUnit:${username}`, ud.foodUnit);
+  if (ud.lastModified) localStorage.setItem(`ms:modified:${username}`, ud.lastModified.toString());
+  const dates = ud.dates || Object.keys(ud.entries || {});
+  localStorage.setItem(`ms:dates:${username}`, JSON.stringify(dates));
+  Object.entries(ud.entries || {}).forEach(([date, entries]) => {
+    localStorage.setItem(`ms:entries:${username}:${date}`, JSON.stringify(entries));
+  });
+  if (ud.weightLog) localStorage.setItem(`ms:weightlog:${username}`, JSON.stringify(ud.weightLog));
+}
+
+function _restorePayload(data) {
+  if (data.users) {
+    // Multi-user format — merge all users in
+    Object.entries(data.users).forEach(([username, ud]) => _applyUserData(username, ud));
+    localStorage.setItem('ms:users', JSON.stringify(S.users));
+    if (S.currentUser) _loadUserData(S.currentUser);
+    S.screen = S.targets ? 'summary' : 'users';
+  } else if (data.profile && data.entries) {
+    // Legacy single-user format — import into current user (or 'Me' if none)
+    const username = S.currentUser || 'Me';
+    _applyUserData(username, {
+      profile: data.profile, targets: data.targets,
+      unit: data.unit, foodUnit: data.foodUnit,
+      dates: data.dates || [], entries: data.entries,
+      weightLog: data.weightLog || [],
+    });
+    if (!S.users.includes(username)) { S.users.push(username); localStorage.setItem('ms:users', JSON.stringify(S.users)); }
+    if (!S.currentUser) { S.currentUser = username; localStorage.setItem('ms:current_user', username); }
+    _loadUserData(S.currentUser);
+    S.screen = S.targets ? 'summary' : 'setup';
+  } else {
+    throw new Error('Invalid backup format');
+  }
 }
 
 function showExportModal() {
@@ -1313,24 +1671,7 @@ function doImportFromText() {
   const errEl=document.getElementById('importError');
   try {
     const data=JSON.parse(text);
-    if(!data.profile||!data.entries)throw new Error('Invalid backup');
-    // FIX: Merge into defaults so missing fields don't break the app
-    S.profile={...PROFILE_DEFAULTS,...data.profile};
-    if(S.profile.goal==='recomp')S.profile.goal='fat_loss';
-    if(data.unit)S.unit=data.unit;
-    if(data.foodUnit)S.foodUnit=data.foodUnit;
-    if(data.targets)S.targets=data.targets;
-    Object.entries(data.entries).forEach(([date,entries])=>{localStorage.setItem('ms:entries:'+date,JSON.stringify(entries));});
-    const dates=data.dates||[];
-    if(data.entries[TODAY]&&!dates.includes(TODAY))dates.unshift(TODAY);
-    localStorage.setItem('ms:dates',JSON.stringify(dates));
-    S.entries=data.entries[TODAY]||[];
-    if(data.weightLog)saveWeightLog(data.weightLog);
-    localStorage.setItem('ms:profile',JSON.stringify(S.profile));
-    localStorage.setItem('ms:unit',S.unit);
-    localStorage.setItem('ms:foodUnit',S.foodUnit);
-    if(S.targets)localStorage.setItem('ms:targets',JSON.stringify(S.targets));
-    S.screen=S.targets?'summary':'setup';
+    _restorePayload(data);
     document.getElementById('importModal').remove();
     alert('Backup restored successfully!');
     render();
@@ -1344,9 +1685,64 @@ function exportData(){showExportModal();}
 function importData(){showImportModal();}
 function updateApp(){if(confirm('Export your backup first so nothing is lost.\n\nTap OK to reload and get the latest version.'))window.location.href=window.location.href.split('?')[0]+'?v='+Date.now();}
 
+// ── Repo Sync ─────────────────────────────────────────────────────────────
+// Writes user-data.json directly to the GitHub repo via the Contents API.
+// Pull is a plain fetch() against the GitHub Pages URL — no auth required.
+// Push needs a PAT with Contents: Read & Write on this repo (fine-grained)
+// or a classic token with 'repo' scope.
+// Owner/repo are auto-detected from window.location so no config is needed.
+
+function getGhToken() { return localStorage.getItem('ms:gh_token') || ''; }
+
+function _repoInfo() {
+  const host = window.location.hostname;        // bluetuna3120.github.io
+  const parts = window.location.pathname.split('/').filter(Boolean); // ['macroscan']
+  if (!host.endsWith('.github.io')) return null;
+  const owner = host.replace('.github.io', '');
+  const repo  = parts[0] || '';
+  return (owner && repo) ? { owner, repo } : null;
+}
+
+function _syncStatus(msg, isError) {
+  const el = document.getElementById('syncStatus');
+  if (el) { el.textContent = msg; el.style.color = isError ? '#ff6b6b' : '#4ade80'; }
+}
+
+// Manual push — called from "Push now" button; saves token from input field first
+async function pushToRepo() {
+  const tokenEl = document.getElementById('ghTokenInput');
+  const token = (tokenEl ? tokenEl.value.trim() : '') || getGhToken();
+  if (!token) { _syncStatus('Enter a GitHub token first.', true); return; }
+  localStorage.setItem('ms:gh_token', token);
+  if (!_repoInfo()) { _syncStatus('Not running on GitHub Pages — cannot auto-detect repo.', true); return; }
+  _syncStatus('Pushing…');
+  const ok = await _silentPush();
+  _syncStatus(ok ? '✓ Pushed' : 'Push failed — check token and permissions.', !ok);
+  if (ok) setSyncState('ok');
+}
+
+// Manual pull — also used by autoSyncLoad path when user explicitly requests it
+async function pullFromRepo() {
+  _syncStatus('Pulling…');
+  try {
+    const res = await fetch('./user-data.json?t=' + Date.now());
+    if (!res.ok) throw new Error('No user-data.json found — push first from any device.');
+    const data = await res.json();
+    _restorePayload(data);
+    _syncStatus(`✓ Pulled — ${S.users.length} profile${S.users.length !== 1 ? 's' : ''} synced`);
+    render();
+  } catch(e) {
+    _syncStatus('Pull failed: ' + e.message, true);
+  }
+}
+
 // ── Boot ──────────────────────────────────────────────────────────────────
 load();
 render();
+autoSyncLoad(); // background merge from repo — re-renders only if newer data found
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
 </script>
 </body>
 </html>

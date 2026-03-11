@@ -844,8 +844,8 @@ function renderFoodResult() {
           <button onclick="setFoodUnit('${u.id}')"
             style="flex:1;min-width:56px;padding:8px 4px;border-radius:10px;border:2px solid ${fu===u.id?'#3a86ff':'#2d3748'};
                    background:${fu===u.id?'linear-gradient(135deg,#1d3a6e,#162d5a)':'#1e2535'};
-                   color:${fu===u.id?'#fff':'#8891a8'};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
-            ${u.label}
+                   color:${fu===u.id?'#fff':'#8891a8'};font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;line-height:1.3">
+            ${u.label}${u.id==='srv'&&u.sub?'<br><span style="font-size:9px;opacity:0.8">'+u.sub+'</span>':''}
           </button>`).join('')}
       </div>
       <div class="amount-wrap">
@@ -854,7 +854,7 @@ function renderFoodResult() {
           autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
           style="padding-right:52px"
           oninput="S.foodWeightDisplay=this.value" >
-        <span class="amount-unit" style="font-size:11px">${fu}</span>
+        <span class="amount-unit" style="font-size:10px">${fu==="srv"?(f.servingLabel||"serv"):fu}</span>
       </div>
       <div class="preview-row" id="previewRow" style="${grams>0?'':'display:none'}">
         <div class="preview-cell"><div class="preview-label">Cals</div><div class="preview-val" style="color:#3a86ff">${Math.round(f.calories*ratio)}</div></div>
@@ -1089,7 +1089,9 @@ function toggleHistDay(id) {
 
 // ── Barcode Scanner ────────────────────────────────────────────────────
 let _scanControls = null;
-let _scanLock = false; // prevents duplicate/stale barcode callbacks
+let _scanReader = null;
+let _scanLock = false;
+let _lastScannedCode = null; // track last code to prevent immediate re-scan of same item
 
 function scannerModalHTML() {
   return `
@@ -1122,13 +1124,16 @@ function openScanner() {
   S.scannedFood = null; S.foodReady = false; S.searchResults = null; S.foodQuery = '';
   S.scannerManualCode = '';
   S.scannerOpen = true; S.scannerError = ''; S.scannerStatus = 'Tap Start Camera to begin.';
-  _scanLock = false; // fresh session, allow new scans
+  _scanLock = false;
+  _lastScannedCode = null; // clear so new scan of same item works fresh
+  if (_scanReader) { try { _scanReader.reset(); } catch(e) {} _scanReader = null; }
   render();
 }
 function closeScanner() { stopScanner(); S.scannerOpen = false; render(); }
 
 function stopScanner() {
   try { if (_scanControls) { _scanControls.stop(); _scanControls = null; } } catch(e) {}
+  try { if (_scanReader) { _scanReader.reset(); _scanReader = null; } } catch(e) {}
   const video = document.getElementById('scannerVideo');
   if (video && video.srcObject) { try { video.srcObject.getTracks().forEach(t=>t.stop()); } catch(e) {} video.srcObject = null; }
   S.scannerActive = false;
@@ -1145,12 +1150,15 @@ async function startScanner() {
   stopScanner();
   setStatus('Requesting camera permission…');
   try {
-    const reader = new ZXing.BrowserMultiFormatReader();
-    _scanControls = await reader.decodeFromVideoDevice(undefined, 'scannerVideo', (result, err) => {
+    _scanReader = new ZXing.BrowserMultiFormatReader();
+    _scanControls = await _scanReader.decodeFromVideoDevice(undefined, 'scannerVideo', (result, err) => {
       if (result && !_scanLock) {
-        _scanLock = true; // prevent any further callbacks from this session
+        const code = result.getText();
+        if (code === _lastScannedCode) return; // same code as last session, ignore
+        _scanLock = true;
+        _lastScannedCode = code;
         stopScanner();
-        lookupBarcode(result.getText());
+        lookupBarcode(code);
       }
     });
     S.scannerActive = true;

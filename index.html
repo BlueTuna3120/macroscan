@@ -569,6 +569,25 @@ function renderSetup() {
   `;
 }
 
+function weightReminderHTML() {
+  const log = getWeightLog();
+  if (!log.length) return '';
+  const sorted = [...log].sort((a,b) => a.ts - b.ts);
+  const lastLogged = sorted[sorted.length-1].weight;
+  const profileWeight = S.unit === 'imperial' ? parseFloat(S.profile.weightLbs) : parseFloat(S.profile.weightKg);
+  if (!profileWeight) return '';
+  const diff = Math.abs(profileWeight - lastLogged);
+  if (diff < 8) return '';
+  const unit = S.unit === 'imperial' ? 'lbs' : 'kg';
+  const diffRounded = Math.round(diff * 10) / 10;
+  return '<div style="background:linear-gradient(135deg,#2d1f00,#3d2a00);border:1px solid #f6ad55;border-radius:14px;padding:14px 16px;display:flex;gap:12px;align-items:flex-start">'
+    + '<div style="font-size:20px">⚖️</div>'
+    + '<div style="flex:1">'
+    + '<div style="font-size:13px;font-weight:700;color:#f6ad55;margin-bottom:4px">Time to recalculate your targets</div>'
+    + '<div style="font-size:12px;color:#d4a35a;line-height:1.5">Your logged weight (' + lastLogged + ' ' + unit + ') differs from your profile by ' + diffRounded + ' ' + unit + '. Go to Settings, update your weight, and tap Recalculate to keep your macros accurate.</div>'
+    + '</div></div>';
+}
+
 function renderSummary(totals) {
   if (!S.targets) return;
   const t = S.targets;
@@ -595,6 +614,7 @@ function renderSummary(totals) {
       </div>
     </div>
     <div class="saved-badge"><span class="saved-dot">●</span><span class="saved-text">Profile & log saved automatically</span></div>
+    ${weightReminderHTML()}
     <button class="btn-primary" onclick="S.scannedFood=null;S.foodReady=false;S.searchResults=null;goSearch()">🔍 Search Food</button>
     ${renderWeeklyChart()}
     ${S.entries.length > 0 ? `
@@ -1219,7 +1239,13 @@ function buildPayload() {
 }
 
 function showExportModal() {
-  const json = JSON.stringify(buildPayload(), null, 2);
+  let json;
+  try {
+    json = JSON.stringify(buildPayload(), null, 2);
+  } catch(e) {
+    alert('Export failed: ' + e.message);
+    return;
+  }
   const existing = document.getElementById('exportModal');
   if (existing) existing.remove();
 

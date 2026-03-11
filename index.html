@@ -824,6 +824,7 @@ function renderFoodResult() {
     { id:'oz',   label:'oz',    sub:'ounces' },
     { id:'ml',   label:'ml',    sub:'milliliters' },
     { id:'floz', label:'fl oz', sub:'fluid oz' },
+    ...(f.servingGrams ? [{ id:'srv', label:'serv', sub: f.servingLabel || (f.servingGrams + 'g') }] : []),
   ];
   document.getElementById('content').innerHTML = `
     <div class="food-result-card">
@@ -1088,6 +1089,7 @@ function toggleHistDay(id) {
 
 // ── Barcode Scanner ────────────────────────────────────────────────────
 let _scanControls = null;
+let _scanLock = false; // prevents duplicate/stale barcode callbacks
 
 function scannerModalHTML() {
   return `
@@ -1120,6 +1122,7 @@ function openScanner() {
   S.scannedFood = null; S.foodReady = false; S.searchResults = null; S.foodQuery = '';
   S.scannerManualCode = '';
   S.scannerOpen = true; S.scannerError = ''; S.scannerStatus = 'Tap Start Camera to begin.';
+  _scanLock = false; // fresh session, allow new scans
   render();
 }
 function closeScanner() { stopScanner(); S.scannerOpen = false; render(); }
@@ -1144,7 +1147,8 @@ async function startScanner() {
   try {
     const reader = new ZXing.BrowserMultiFormatReader();
     _scanControls = await reader.decodeFromVideoDevice(undefined, 'scannerVideo', (result, err) => {
-      if (result) {
+      if (result && !_scanLock) {
+        _scanLock = true; // prevent any further callbacks from this session
         stopScanner();
         lookupBarcode(result.getText());
       }
@@ -1163,6 +1167,10 @@ async function startScanner() {
 async function lookupBarcode(rawCode) {
   const code = String(rawCode||'').trim();
   if (!code) return;
+  // Snapshot the code we're looking up — if scannedFood gets cleared before
+  // this async call returns, we know it's stale and should not set it
+  const lookupId = Date.now();
+  S._lastLookupId = lookupId;
   S.scannerManualCode = code;
   S.searchError = '';
 
@@ -1172,7 +1180,7 @@ async function lookupBarcode(rawCode) {
 
   // Try Open Food Facts via HTTPS (works fine from GitHub Pages)
   try {
-    const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}?fields=product_name,nutriments`, {
+    const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}?fields=product_name,nutriments,serving_quantity,serving_size`, {
       headers: { 'User-Agent': 'MacroScan/1.0' }
     });
     if (!res.ok) throw new Error('Network error');
@@ -1184,9 +1192,17 @@ async function lookupBarcode(rawCode) {
       const protein  = Number(n['proteins_100g']  ?? n['proteins']  ?? 0);
       const carbs    = Number(n['carbohydrates_100g'] ?? n['carbohydrates'] ?? 0);
       const fat      = Number(n['fat_100g'] ?? n['fat'] ?? 0);
+      // Serving size in grams (e.g. 56 for 1 egg, 28 for 1 slice of bread)
+      const servingGrams = parseFloat(data.product.serving_quantity) || null;
+      const servingLabel = data.product.serving_size || null;
       if (name && (calories || protein || carbs || fat)) {
-        S.scannedFood = { name, calories: Math.round(calories), protein: Math.round(protein*10)/10, carbs: Math.round(carbs*10)/10, fat: Math.round(fat*10)/10, serving: 100, barcode: code };
+        // If a newer lookup started (user scanned again), discard this stale result
+        if (S._lastLookupId !== lookupId) return;
+        S.scannedFood = { name, calories: Math.round(calories), protein: Math.round(protein*10)/10, carbs: Math.round(carbs*10)/10, fat: Math.round(fat*10)/10, serving: 100, barcode: code, servingGrams, servingLabel };
         S.foodReady = true;
+        S.searchError = '';
+        S.foodUnit = servingGrams ? 'srv' : 'g';
+        S.foodWeightDisplay = servingGrams ? '1' : '100';
         S.scannerOpen = false; stopScanner(); render(); return;
       }
     }
@@ -1208,11 +1224,7 @@ function promptBarcode() {
 // ── Handlers ───────────────────────────────────────────────────────────
 function setUnit(u) { S.unit = u; save(); render(); }
 function setFoodUnit(u) {
-  const inp = document.getElementById('amountInput');
-  // Save whatever the user typed before we re-render
-  if (inp && inp.value) S.foodWeightDisplay = inp.value;
   S.foodUnit = u;
-  // Only reset display if switching to a different unit type
   S.foodWeightDisplay = defaultAmountForUnit(u);
   render();
 }
@@ -1285,7 +1297,8 @@ function addEntry() {
   if (inputEl) S.foodWeightDisplay = inputEl.value || S.foodWeightDisplay;
   const grams = getFoodWeightInGrams(); if (!grams) return;
   const ratio = grams / (f.serving||100);
-  S.entries.push({ id:Date.now(), name:f.name, grams:Math.round(grams*10)/10, displayWeight:parseFloat(S.foodWeightDisplay), displayUnit:S.foodUnit,
+  const displayUnit = S.foodUnit === 'srv' ? (f.servingLabel || 'serving') : S.foodUnit;
+  S.entries.push({ id:Date.now(), name:f.name, grams:Math.round(grams*10)/10, displayWeight:parseFloat(S.foodWeightDisplay), displayUnit,
     calories:Math.round(f.calories*ratio), protein:Math.round(f.protein*ratio*10)/10, carbs:Math.round(f.carbs*ratio*10)/10, fat:Math.round(f.fat*ratio*10)/10 });
   S.scannedFood = null; S.foodReady = false; S.foodQuery = ''; S.screen = 'summary';
   save(); render();

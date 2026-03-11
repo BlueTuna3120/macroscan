@@ -1219,27 +1219,33 @@ function exportData() {
   const json = JSON.stringify(payload, null, 2);
   const filename = `macroscan-backup-${TODAY}.json`;
 
-  // iOS PWA doesn't support blob download via a.click()
-  // Use share API if available (iOS 14+), otherwise open as data URI
-  if (navigator.share) {
-    const file = new File([json], filename, { type: 'application/json' });
-    navigator.share({ files: [file], title: 'MacroScan Backup' })
-      .catch(e => { if (e.name !== 'AbortError') iosExportFallback(json, filename); });
-  } else {
-    iosExportFallback(json, filename);
-  }
-}
+  // Try blob download first (works in browser, not in PWA standalone mode)
+  try {
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); document.body.removeChild(a); }, 1000);
+    return;
+  } catch(e) {}
 
-function iosExportFallback(json, filename) {
-  // Open JSON as a data URI in a new tab — iOS will show Share Sheet to save
+  // Fall back to Web Share API (iOS PWA standalone mode)
+  if (navigator.canShare && navigator.share) {
+    try {
+      const file = new File([json], filename, { type: 'application/json' });
+      if (navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file], title: 'MacroScan Backup', text: 'MacroScan backup file' });
+        return;
+      }
+    } catch(e) {}
+  }
+
+  // Last resort: open raw JSON in new tab so user can manually save
   const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
-  const a = document.createElement('a');
-  a.href = dataUri;
-  a.download = filename;
-  a.target = '_blank';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  window.open(dataUri, '_blank');
 }
 
 function importData() {

@@ -851,7 +851,8 @@ function renderFoodResult() {
         <input type="text" inputmode="decimal" id="amountInput" value="${escHtml(S.foodWeightDisplay)}"
           placeholder="${defaultAmountForUnit(fu)}"
           autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-          style="padding-right:52px" >
+          style="padding-right:52px"
+          oninput="S.foodWeightDisplay=this.value" >
         <span class="amount-unit" style="font-size:11px">${fu}</span>
       </div>
       <div class="preview-row" id="previewRow" style="${grams>0?'':'display:none'}">
@@ -1206,7 +1207,15 @@ function promptBarcode() {
 
 // ── Handlers ───────────────────────────────────────────────────────────
 function setUnit(u) { S.unit = u; save(); render(); }
-function setFoodUnit(u) { S.foodUnit = u; S.foodWeightDisplay = defaultAmountForUnit(u); render(); }
+function setFoodUnit(u) {
+  const inp = document.getElementById('amountInput');
+  // Save whatever the user typed before we re-render
+  if (inp && inp.value) S.foodWeightDisplay = inp.value;
+  S.foodUnit = u;
+  // Only reset display if switching to a different unit type
+  S.foodWeightDisplay = defaultAmountForUnit(u);
+  render();
+}
 function goSearch() { stopScanner(); S.scannerOpen=false; S.screen='search'; S.scannedFood=null; S.foodReady=false; S.searchError=''; S.searchResults=null; S.searchLoading=false; S.scannerManualCode=''; render(); }
 function toggleCustom() { S.showCustom = !S.showCustom; render(); }
 
@@ -1273,7 +1282,7 @@ function updatePreview() {
 function addEntry() {
   const f = S.scannedFood; if (!f) return;
   const inputEl = document.getElementById('amountInput');
-  if (inputEl && inputEl.value) S.foodWeightDisplay = inputEl.value;
+  if (inputEl) S.foodWeightDisplay = inputEl.value || S.foodWeightDisplay;
   const grams = getFoodWeightInGrams(); if (!grams) return;
   const ratio = grams / (f.serving||100);
   S.entries.push({ id:Date.now(), name:f.name, grams:Math.round(grams*10)/10, displayWeight:parseFloat(S.foodWeightDisplay), displayUnit:S.foodUnit,

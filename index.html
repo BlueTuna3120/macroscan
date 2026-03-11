@@ -1340,17 +1340,36 @@ function doImportFromText() {
   try {
     const data = JSON.parse(text);
     if (!data.profile || !data.entries) throw new Error('Invalid backup');
-    // Restore all data
+
+    // Restore profile and settings into state
     S.profile = data.profile;
     if (data.unit) S.unit = data.unit;
     if (data.foodUnit) S.foodUnit = data.foodUnit;
     if (data.targets) S.targets = data.targets;
-    if (data.weightLog) saveWeightLog(data.weightLog);
+
+    // Restore all daily entries to localStorage
     Object.entries(data.entries).forEach(([date, entries]) => {
       localStorage.setItem('ms:entries:' + date, JSON.stringify(entries));
     });
-    if (data.dates) localStorage.setItem('ms:dates', JSON.stringify(data.dates));
-    save();
+
+    // Restore dates list — make sure TODAY is included if it has entries
+    const dates = data.dates || [];
+    if (data.entries[TODAY] && !dates.includes(TODAY)) dates.unshift(TODAY);
+    localStorage.setItem('ms:dates', JSON.stringify(dates));
+
+    // Reload today's entries into live state
+    S.entries = data.entries[TODAY] || [];
+
+    // Restore weight log
+    if (data.weightLog) saveWeightLog(data.weightLog);
+
+    // Save profile/settings/targets (but NOT entries — already written above)
+    localStorage.setItem('ms:profile', JSON.stringify(S.profile));
+    localStorage.setItem('ms:unit', S.unit);
+    localStorage.setItem('ms:foodUnit', S.foodUnit);
+    if (S.targets) localStorage.setItem('ms:targets', JSON.stringify(S.targets));
+
+    S.screen = S.targets ? 'summary' : 'setup';
     document.getElementById('importModal').remove();
     alert('Backup restored successfully!');
     render();

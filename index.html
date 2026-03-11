@@ -307,6 +307,7 @@ function load() {
     const u = localStorage.getItem('ms:unit'); if (u) S.unit = u;
     const fu = localStorage.getItem('ms:foodUnit'); if (fu) S.foodUnit = fu;
     const t = localStorage.getItem('ms:targets'); if (t) { S.targets = JSON.parse(t); S.screen = 'summary'; }
+    if (S.profile.goal === 'recomp') S.profile.goal = 'fat_loss';
     const e = localStorage.getItem('ms:entries:' + TODAY); if (e) S.entries = JSON.parse(e);
     S.foodWeightDisplay = S.foodUnit === 'g' ? '100' : '3.5';
   } catch(e) {}
@@ -345,7 +346,6 @@ const GOALS = {
   cut:       { label:'Cut',       icon:'✂️',  desc:'Calorie deficit -300–500 · Maximize fat loss',        detail:'-300–500 cal below maintenance · Protein 1–1.2g/lb · Carbs 25–40% · Fat 20–30%',   calOffset:-400, proteinPerLb:1.1,  carbPct:0.32, fatPct:0.25 },
   lean_bulk: { label:'Lean Bulk', icon:'💪',  desc:'Maintenance to +200 · Muscle with minimal fat',      detail:'Maint to +200 cal · Protein 1g/lb · Carbs 40–50% · Fat 25–35%',                     calOffset:+150, proteinPerLb:1.0,  carbPct:0.45, fatPct:0.30 },
   fat_loss:  { label:'Fat Loss',  icon:'🔥',  desc:'Calorie deficit -300–500 · General fat loss',        detail:'-300–500 cal below maintenance · Protein 0.8–1g/lb · Carbs 30–40% · Fat 25–35%',   calOffset:-400, proteinPerLb:0.9,  carbPct:0.35, fatPct:0.30 },
-  recomp:    { label:'Recomp',    icon:'⚖️',  desc:'Maintenance calories · Lose fat + gain muscle',      detail:'Maint / -100–200 cal · Protein 0.7g/lb · Carbs 40% · Fat 30%',                    calOffset:-150, proteinPerLb:0.7,  carbPct:0.40, fatPct:0.30 },
 };
 function computeTargets(TDEE, goal, wLbs) {
   const g = GOALS[goal];
@@ -676,9 +676,72 @@ function renderWeeklyChart() {
         <div class="week-summary-cell"><div class="week-summary-label">Avg Cals</div><div class="week-summary-val" style="color:#3a86ff">${avg('calories')}</div></div>
         <div class="week-summary-cell"><div class="week-summary-label">Avg Protein</div><div class="week-summary-val" style="color:#ff6b6b">${avg('protein')}g</div></div>
         <div class="week-summary-cell"><div class="week-summary-label">Avg Carbs</div><div class="week-summary-val" style="color:#ffd166">${avg('carbs')}g</div></div>
-        <div class="week-summary-cell"><div class="week-summary-label">Goal Days</div><div class="week-summary-val" style="color:#06d6a0">${hitDays}/7</div></div>
+        <div class="week-summary-cell" style="${hitDays===7?'cursor:pointer':''}" onclick="${hitDays===7?'showEasterEgg()':''}"><div class="week-summary-label">Goal Days</div><div class="week-summary-val" style="color:${hitDays===7?'#ffd166':'#06d6a0'}">${hitDays===7?'🏆 7/7':hitDays+'/7'}</div></div>
       </div>
     </div>`;
+}
+
+function showEasterEgg() {
+  const existing = document.getElementById('easterEgg');
+  if (existing) existing.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'easterEgg';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px;box-sizing:border-box;';
+  overlay.onclick = () => overlay.remove();
+
+  // Confetti burst
+  const canvas = document.createElement('canvas');
+  canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none';
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  overlay.appendChild(canvas);
+
+  const content = document.createElement('div');
+  content.style.cssText = 'position:relative;text-align:center;z-index:1';
+  content.innerHTML = '<div style="font-size:72px;margin-bottom:16px;animation:eggBounce 0.6s ease">🏆</div>'
+    + '<div style="font-size:28px;font-weight:800;color:#ffd166;margin-bottom:10px;font-family:DM Sans,sans-serif">7 for 7!</div>'
+    + '<div style="font-size:16px;color:#e2e8f0;margin-bottom:8px;font-family:DM Sans,sans-serif">Perfect week. You crushed it.</div>'
+    + '<div style="font-size:13px;color:#8891a8;margin-top:16px;font-family:DM Sans,sans-serif">Tap anywhere to close</div>';
+  overlay.appendChild(content);
+  document.body.appendChild(overlay);
+
+  // Inject bounce animation if not present
+  if (!document.getElementById('eggStyle')) {
+    const s = document.createElement('style');
+    s.id = 'eggStyle';
+    s.textContent = '@keyframes eggBounce{0%{transform:scale(0.3);opacity:0}60%{transform:scale(1.2)}100%{transform:scale(1);opacity:1}}';
+    document.head.appendChild(s);
+  }
+
+  // Confetti animation
+  const ctx = canvas.getContext('2d');
+  const pieces = Array.from({length:80}, () => ({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height - canvas.height,
+    w: Math.random()*8+4, h: Math.random()*12+6,
+    r: Math.random()*Math.PI*2,
+    vx: (Math.random()-0.5)*4,
+    vy: Math.random()*4+2,
+    vr: (Math.random()-0.5)*0.2,
+    color: ['#ffd166','#3a86ff','#ff6b6b','#06d6a0','#fff'][Math.floor(Math.random()*5)]
+  }));
+  let frame;
+  function drawConfetti() {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    pieces.forEach(p => {
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.r);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+      ctx.restore();
+      p.x += p.vx; p.y += p.vy; p.r += p.vr;
+      if (p.y > canvas.height) { p.y = -20; p.x = Math.random()*canvas.width; }
+    });
+    frame = requestAnimationFrame(drawConfetti);
+  }
+  drawConfetti();
+  overlay.addEventListener('click', () => cancelAnimationFrame(frame));
 }
 
 function renderSearch() {

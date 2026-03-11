@@ -553,12 +553,12 @@ function renderSetup() {
       <div class="card-title">Data Management</div>
       <div style="display:flex;flex-direction:column;gap:10px">
         <div>
-          <div style="font-size:12px;color:#8891a8;margin-bottom:8px">Backup your food log and profile to a JSON file stored on your device.</div>
-          <button class="btn-secondary" style="width:100%" onclick="exportData()">⬇️ Export Backup</button>
+          <div style="font-size:12px;color:#8891a8;margin-bottom:8px">Backup your food log and profile. Tap Export to view your data, then copy and paste it somewhere safe (Notes, email, etc).</div>
+          <button class="btn-secondary" style="width:100%" onclick="showExportModal()">⬇️ Export Backup</button>
         </div>
         <div>
-          <div style="font-size:12px;color:#8891a8;margin-bottom:8px">Restore a previously exported backup file.</div>
-          <button class="btn-secondary" style="width:100%" onclick="importData()">⬆️ Import Backup</button>
+          <div style="font-size:12px;color:#8891a8;margin-bottom:8px">Restore from a previous backup. Paste your backup text and tap Import.</div>
+          <button class="btn-secondary" style="width:100%" onclick="showImportModal()">⬆️ Import Backup</button>
         </div>
         <div style="border-top:1px solid #1e2535;padding-top:10px">
           <div style="font-size:12px;color:#8891a8;margin-bottom:8px">Get the latest version from GitHub. Your data is exported first so nothing is lost.</div>
@@ -1200,12 +1200,12 @@ function addEntry() {
 function deleteEntry(i) { S.entries.splice(i,1); save(); render(); }
 
 // ── Export / Import / Update ──────────────────────────────────────────
-function exportData() {
+function buildPayload() {
   const dates = getLoggedDates();
   const entries = {};
   dates.forEach(d => { entries[d] = getEntriesForDate(d); });
   if (S.entries.length > 0 && !entries[TODAY]) entries[TODAY] = S.entries;
-  const payload = {
+  return {
     version: APP_VERSION,
     exportedAt: new Date().toISOString(),
     profile: S.profile,
@@ -1216,84 +1216,113 @@ function exportData() {
     entries,
     weightLog: getWeightLog(),
   };
-  const json = JSON.stringify(payload, null, 2);
-  const filename = `macroscan-backup-${TODAY}.json`;
+}
 
-  // Try blob download first (works in browser, not in PWA standalone mode)
+function showExportModal() {
+  const json = JSON.stringify(buildPayload(), null, 2);
+  // Remove existing modal if any
+  const existing = document.getElementById('exportModal');
+  if (existing) existing.remove();
+  const modal = document.createElement('div');
+  modal.id = 'exportModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;flex-direction:column;padding:20px;box-sizing:border-box;';
+  modal.innerHTML = `
+    <div style="background:#1a2033;border-radius:16px;display:flex;flex-direction:column;height:100%;overflow:hidden;padding:20px;gap:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:16px;font-weight:700;color:#e2e8f0">Your Backup Data</div>
+          <div style="font-size:12px;color:#8891a8;margin-top:2px">Select all → Copy → Paste into Notes or email</div>
+        </div>
+        <button onclick="document.getElementById('exportModal').remove()"
+          style="background:#2d3748;border:none;color:#e2e8f0;border-radius:10px;padding:8px 14px;font-size:13px;font-family:inherit;cursor:pointer">Done</button>
+      </div>
+      <textarea id="exportText" readonly
+        style="flex:1;background:#0d1117;border:1px solid #2d3748;border-radius:12px;color:#a0aec0;font-size:11px;font-family:monospace;padding:12px;resize:none;-webkit-user-select:text;user-select:text;line-height:1.5"
+        >${json.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>
+      <button onclick="selectExportText()"
+        style="background:linear-gradient(135deg,#3a86ff,#00d2ff);border:none;color:#fff;border-radius:12px;padding:14px;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;width:100%">
+        Select All Text
+      </button>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+function selectExportText() {
+  const ta = document.getElementById('exportText');
+  if (!ta) return;
+  ta.focus();
+  ta.select();
+  // iOS fallback
+  const range = document.createRange();
+  range.selectNodeContents(ta);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+  try { document.execCommand('copy'); } catch(e) {}
+}
+
+function showImportModal() {
+  const existing = document.getElementById('importModal');
+  if (existing) existing.remove();
+  const modal = document.createElement('div');
+  modal.id = 'importModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;flex-direction:column;padding:20px;box-sizing:border-box;';
+  modal.innerHTML = `
+    <div style="background:#1a2033;border-radius:16px;display:flex;flex-direction:column;height:100%;overflow:hidden;padding:20px;gap:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:16px;font-weight:700;color:#e2e8f0">Import Backup</div>
+          <div style="font-size:12px;color:#8891a8;margin-top:2px">Paste your backup text below</div>
+        </div>
+        <button onclick="document.getElementById('importModal').remove()"
+          style="background:#2d3748;border:none;color:#e2e8f0;border-radius:10px;padding:8px 14px;font-size:13px;font-family:inherit;cursor:pointer">Cancel</button>
+      </div>
+      <textarea id="importText" placeholder="Paste your backup JSON here..."
+        style="flex:1;background:#0d1117;border:1px solid #2d3748;border-radius:12px;color:#a0aec0;font-size:11px;font-family:monospace;padding:12px;resize:none;-webkit-user-select:text;user-select:text;line-height:1.5"></textarea>
+      <div id="importError" style="color:#ff6b6b;font-size:12px;display:none"></div>
+      <button onclick="doImportFromText()"
+        style="background:linear-gradient(135deg,#3a86ff,#00d2ff);border:none;color:#fff;border-radius:12px;padding:14px;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;width:100%">
+        Import Data
+      </button>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+function doImportFromText() {
+  const text = document.getElementById('importText').value.trim();
+  const errEl = document.getElementById('importError');
   try {
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => { URL.revokeObjectURL(url); document.body.removeChild(a); }, 1000);
-    return;
-  } catch(e) {}
-
-  // Fall back to Web Share API (iOS PWA standalone mode)
-  if (navigator.canShare && navigator.share) {
-    try {
-      const file = new File([json], filename, { type: 'application/json' });
-      if (navigator.canShare({ files: [file] })) {
-        navigator.share({ files: [file], title: 'MacroScan Backup', text: 'MacroScan backup file' });
-        return;
-      }
-    } catch(e) {}
+    const data = JSON.parse(text);
+    if (!data.profile || !data.entries) throw new Error('Invalid backup');
+    // Restore all data
+    S.profile = data.profile;
+    if (data.unit) S.unit = data.unit;
+    if (data.foodUnit) S.foodUnit = data.foodUnit;
+    if (data.targets) S.targets = data.targets;
+    if (data.weightLog) saveWeightLog(data.weightLog);
+    Object.entries(data.entries).forEach(([date, entries]) => {
+      localStorage.setItem('ms:entries:' + date, JSON.stringify(entries));
+    });
+    if (data.dates) localStorage.setItem('ms:dates', JSON.stringify(data.dates));
+    save();
+    document.getElementById('importModal').remove();
+    alert('Backup restored successfully!');
+    render();
+  } catch(e) {
+    errEl.textContent = 'Invalid backup data. Make sure you pasted the full text.';
+    errEl.style.display = 'block';
   }
-
-  // Last resort: open raw JSON in new tab so user can manually save
-  const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
-  window.open(dataUri, '_blank');
 }
 
-function importData() {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = '.json,application/json';
-  input.onchange = async e => {
-    const file = e.target.files[0];
-    if (!file) return;
-    try {
-      const text = await file.text();
-      const data = JSON.parse(text);
-      if (!data.profile || !data.entries) throw new Error('Invalid backup file');
-      // Restore profile & settings
-      S.profile = data.profile;
-      S.unit = data.unit || 'imperial';
-      S.foodUnit = data.foodUnit || 'g';
-      S.targets = data.targets || null;
-      // Restore all daily entries to localStorage
-      Object.entries(data.entries).forEach(([date, ents]) => {
-        localStorage.setItem('ms:entries:' + date, JSON.stringify(ents));
-      });
-      localStorage.setItem('ms:dates', JSON.stringify(data.dates || []));
-      // Reload today's entries
-      if (data.weightLog) saveWeightLog(data.weightLog);
-      const todayEntries = data.entries[TODAY];
-      S.entries = todayEntries || [];
-      save();
-      S.screen = S.targets ? 'summary' : 'setup';
-      alert('✅ Data restored successfully!');
-      render();
-    } catch(err) {
-      alert('❌ Could not restore: ' + err.message);
-    }
-  };
-  input.click();
-}
+function exportData() { showExportModal(); }
+
+function importData() { showImportModal(); }
 
 function updateApp() {
-  // Step 1: export their data as JSON
-  exportData();
-  // Step 2: after a short delay, hard reload to get latest code from GitHub Pages
-  setTimeout(() => {
-    const ok = confirm('Your data has been downloaded.\n\nTap OK to reload the app and get the latest version.\n\nAfter it loads, go to Settings → Import Backup to restore your data.');
-    if (ok) {
-      window.location.href = window.location.href.split('?')[0] + '?v=' + Date.now();
-    }
-  }, 800);
+  const ok = confirm('Before updating, make sure you have exported and saved your backup.\n\nTap OK to reload the app and get the latest version.');
+  if (ok) {
+    window.location.href = window.location.href.split('?')[0] + '?v=' + Date.now();
+  }
 }
 
 // ── Boot ───────────────────────────────────────────────────────────────

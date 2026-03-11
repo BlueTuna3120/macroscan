@@ -238,6 +238,7 @@ const S = {
   searchLoading: false,
   customFood: { name:'', calories:'', protein:'', carbs:'', fat:'' },
   scannedFood: null,
+  foodReady: false,
   foodWeightDisplay: '100',
   scannerOpen: false,
   scannerStatus: '',
@@ -441,7 +442,7 @@ function renderNav() {
 function navTo(s) {
   stopScanner(); S.scannerOpen = false;
   S.screen = (s === 'summary' && !S.targets) ? 'setup' : s;
-  S.scannedFood = null; S.searchError = ''; S.foodQuery = '';
+  S.scannedFood = null; S.foodReady = false; S.searchError = ''; S.foodQuery = '';
   render();
 }
 
@@ -568,7 +569,7 @@ function renderSummary(totals) {
       </div>
     </div>
     <div class="saved-badge"><span class="saved-dot">●</span><span class="saved-text">Profile & log saved automatically</span></div>
-    <button class="btn-primary" onclick="S.scannedFood=null;S.searchResults=null;goSearch()">🔍 Search Food</button>
+    <button class="btn-primary" onclick="S.scannedFood=null;S.foodReady=false;S.searchResults=null;goSearch()">🔍 Search Food</button>
     ${renderWeeklyChart()}
     ${S.entries.length > 0 ? `
     <div class="card">
@@ -633,7 +634,7 @@ function renderWeeklyChart() {
 }
 
 function renderSearch() {
-  if (S.scannedFood) { renderFoodResult(); return; }
+  if (S.scannedFood && S.foodReady) { renderFoodResult(); return; }
   const canScan = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
 
   const resultsHTML = () => {
@@ -697,6 +698,7 @@ function renderSearch() {
 function selectSearchResult(i) {
   const f = S.searchResults[i];
   S.scannedFood = { ...f, barcode: '' };
+  S.foodReady = true;
   S.searchResults = null;
   S.foodUnit = 'g';
   S.foodWeightDisplay = '100';
@@ -749,7 +751,7 @@ function renderFoodResult() {
       </div>
     </div>
     <button class="btn-primary" onclick="addEntry()">+ Add to Log</button>
-    <button class="btn-secondary" onclick="S.scannedFood=null;S.foodQuery='';S.searchError='';S.showCustom=false;render()">↩ Search Another</button>`;
+    <button class="btn-secondary" onclick="S.scannedFood=null;S.foodReady=false;S.foodQuery='';S.searchError='';S.showCustom=false;render()">↩ Search Another</button>`;
 }
 
 function renderHistory() {
@@ -842,7 +844,7 @@ function scannerModalHTML() {
 }
 
 function openScanner() {
-  S.scannedFood = null; S.searchResults = null; S.foodQuery = '';
+  S.scannedFood = null; S.foodReady = false; S.searchResults = null; S.foodQuery = '';
   S.scannerManualCode = '';
   S.scannerOpen = true; S.scannerError = ''; S.scannerStatus = 'Tap Start Camera to begin.';
   render();
@@ -911,6 +913,7 @@ async function lookupBarcode(rawCode) {
       const fat      = Number(n['fat_100g'] ?? n['fat'] ?? 0);
       if (name && (calories || protein || carbs || fat)) {
         S.scannedFood = { name, calories: Math.round(calories), protein: Math.round(protein*10)/10, carbs: Math.round(carbs*10)/10, fat: Math.round(fat*10)/10, serving: 100, barcode: code };
+        S.foodReady = true;
         S.scannerOpen = false; stopScanner(); render(); return;
       }
     }
@@ -932,7 +935,7 @@ function promptBarcode() {
 // ── Handlers ───────────────────────────────────────────────────────────
 function setUnit(u) { S.unit = u; save(); render(); }
 function setFoodUnit(u) { S.foodUnit = u; S.foodWeightDisplay = defaultAmountForUnit(u); render(); }
-function goSearch() { stopScanner(); S.scannerOpen=false; S.screen='search'; S.scannedFood=null; S.searchError=''; S.searchResults=null; S.searchLoading=false; S.scannerManualCode=''; render(); }
+function goSearch() { stopScanner(); S.scannerOpen=false; S.screen='search'; S.scannedFood=null; S.foodReady=false; S.searchError=''; S.searchResults=null; S.searchLoading=false; S.scannerManualCode=''; render(); }
 function toggleCustom() { S.showCustom = !S.showCustom; render(); }
 
 function handleSetup() {
@@ -986,6 +989,7 @@ async function doSearch() {
 function useCustomFood() {
   if (!S.customFood.name) return;
   S.scannedFood = { name:S.customFood.name, calories:parseFloat(S.customFood.calories)||0, protein:parseFloat(S.customFood.protein)||0, carbs:parseFloat(S.customFood.carbs)||0, fat:parseFloat(S.customFood.fat)||0, serving:100, barcode:'custom' };
+  S.foodReady = true;
   S.customFood = { name:'', calories:'', protein:'', carbs:'', fat:'' };
   S.showCustom = false; render();
 }
@@ -1002,7 +1006,7 @@ function addEntry() {
   const ratio = grams / (f.serving||100);
   S.entries.push({ id:Date.now(), name:f.name, grams:Math.round(grams*10)/10, displayWeight:parseFloat(S.foodWeightDisplay), displayUnit:S.foodUnit,
     calories:Math.round(f.calories*ratio), protein:Math.round(f.protein*ratio*10)/10, carbs:Math.round(f.carbs*ratio*10)/10, fat:Math.round(f.fat*ratio*10)/10 });
-  S.scannedFood = null; S.foodQuery = ''; S.screen = 'summary';
+  S.scannedFood = null; S.foodReady = false; S.foodQuery = ''; S.screen = 'summary';
   save(); render();
 }
 
@@ -1013,7 +1017,6 @@ function exportData() {
   const dates = getLoggedDates();
   const entries = {};
   dates.forEach(d => { entries[d] = getEntriesForDate(d); });
-  // Also include today if not yet in dates list
   if (S.entries.length > 0 && !entries[TODAY]) entries[TODAY] = S.entries;
   const payload = {
     version: APP_VERSION,
@@ -1025,13 +1028,30 @@ function exportData() {
     dates,
     entries,
   };
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
+  const json = JSON.stringify(payload, null, 2);
+  const filename = `macroscan-backup-${TODAY}.json`;
+
+  // iOS PWA doesn't support blob download via a.click()
+  // Use share API if available (iOS 14+), otherwise open as data URI
+  if (navigator.share) {
+    const file = new File([json], filename, { type: 'application/json' });
+    navigator.share({ files: [file], title: 'MacroScan Backup' })
+      .catch(e => { if (e.name !== 'AbortError') iosExportFallback(json, filename); });
+  } else {
+    iosExportFallback(json, filename);
+  }
+}
+
+function iosExportFallback(json, filename) {
+  // Open JSON as a data URI in a new tab — iOS will show Share Sheet to save
+  const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
   const a = document.createElement('a');
-  a.href = url;
-  a.download = `macroscan-backup-${TODAY}.json`;
+  a.href = dataUri;
+  a.download = filename;
+  a.target = '_blank';
+  document.body.appendChild(a);
   a.click();
-  URL.revokeObjectURL(url);
+  document.body.removeChild(a);
 }
 
 function importData() {

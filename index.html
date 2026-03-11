@@ -246,6 +246,7 @@ const S = {
   scannerManualCode: '',
   scannerActive: false,
   zxingLoaded: false,
+  weightInput: '',
 };
 
 // ── Persist ────────────────────────────────────────────────────────────
@@ -267,6 +268,29 @@ function getLoggedDates() {
 function getEntriesForDate(date) {
   try { return JSON.parse(localStorage.getItem('ms:entries:' + date) || '[]'); } catch(e) { return []; }
 }
+function getWeightLog() {
+  try { return JSON.parse(localStorage.getItem('ms:weightlog') || '[]'); } catch(e) { return []; }
+}
+function saveWeightLog(log) {
+  try { localStorage.setItem('ms:weightlog', JSON.stringify(log)); } catch(e) {}
+}
+function addWeightEntry() {
+  const val = parseFloat(S.weightInput);
+  if (!val || val <= 0) return;
+  const log = getWeightLog();
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
+  log.push({ date: TODAY, time: timeStr, ts: Date.now(), weight: val });
+  saveWeightLog(log);
+  S.weightInput = '';
+  renderWeight();
+}
+function deleteWeightEntry(ts) {
+  const log = getWeightLog().filter(e => e.ts !== ts);
+  saveWeightLog(log);
+  renderWeight();
+}
+
 function formatDate(dateStr) {
   const d = new Date(dateStr + 'T12:00:00');
   const today = new Date(TODAY + 'T12:00:00');
@@ -410,6 +434,7 @@ function render() {
   else if (S.screen === 'summary') renderSummary(totals);
   else if (S.screen === 'search') renderSearch();
   else if (S.screen === 'history') renderHistory();
+  else if (S.screen === 'weight') renderWeight();
   renderNav();
   // Re-inject scanner modal if needed
   const existing = document.getElementById('scannerModal');
@@ -431,6 +456,7 @@ function renderNav() {
   nav.innerHTML = [
     { id:'summary', icon:'📊', label:'Today' },
     { id:'history', icon:'📅', label:'History' },
+    { id:'weight',  icon:'⚖️', label:'Weight' },
     { id:'setup',   icon:'⚙️', label:'Settings' },
   ].map(t => `
     <button class="nav-tab ${S.screen===t.id||(t.id==='summary'&&S.screen==='search')?'active':''}" onclick="navTo('${t.id}')">
@@ -754,6 +780,167 @@ function renderFoodResult() {
     <button class="btn-secondary" onclick="S.scannedFood=null;S.foodReady=false;S.foodQuery='';S.searchError='';S.showCustom=false;render()">↩ Search Another</button>`;
 }
 
+function renderWeight() {
+  const unit = S.unit === 'imperial' ? 'lbs' : 'kg';
+  const log = getWeightLog();
+  // Sort by timestamp
+  const sorted = [...log].sort((a,b) => a.ts - b.ts);
+
+  // Trend line calculation (simple linear regression)
+  function trendLine(pts) {
+    if (pts.length < 2) return [];
+    const n = pts.length;
+    const sumX = pts.reduce((s,p,i) => s+i, 0);
+    const sumY = pts.reduce((s,p) => s+p.weight, 0);
+    const sumXY = pts.reduce((s,p,i) => s+i*p.weight, 0);
+    const sumX2 = pts.reduce((s,p,i) => s+i*i, 0);
+    const m = (n*sumXY - sumX*sumY) / (n*sumX2 - sumX*sumX);
+    const b = (sumY - m*sumX) / n;
+    return pts.map((_,i) => Math.round((m*i + b)*10)/10);
+  }
+
+  // Build SVG chart
+  function buildChart() {
+    if (sorted.length === 0) return '';
+    const W = 320, H = 160, PAD = { top:20, right:16, bottom:30, left:40 };
+    const cW = W - PAD.left - PAD.right;
+    const cH = H - PAD.top - PAD.bottom;
+    const weights = sorted.map(e => e.weight);
+    const minW = Math.min(...weights), maxW = Math.max(...weights);
+    const range = maxW - minW || 2;
+    const padR = range * 0.15;
+    const yMin = minW - padR, yMax = maxW + padR;
+
+    const xScale = i => PAD.left + (sorted.length === 1 ? cW/2 : (i / (sorted.length-1)) * cW);
+    const yScale = v => PAD.top + cH - ((v - yMin) / (yMax - yMin)) * cH;
+
+    // Actual line path
+    const linePath = sorted.map((e,i) => `${i===0?'M':'L'}${xScale(i).toFixed(1)},${yScale(e.weight).toFixed(1)}`).join(' ');
+
+    // Trend line
+    const trend = trendLine(sorted);
+    const trendPath = trend.length >= 2
+      ? `M${xScale(0).toFixed(1)},${yScale(trend[0]).toFixed(1)} L${xScale(trend.length-1).toFixed(1)},${yScale(trend[trend.length-1]).toFixed(1)}`
+      : '';
+
+    // Fill under actual line
+    const fillPath = linePath + ` L${xScale(sorted.length-1).toFixed(1)},${(PAD.top+cH).toFixed(1)} L${xScale(0).toFixed(1)},${(PAD.top+cH).toFixed(1)} Z`;
+
+    // X axis labels (show up to 5 evenly spaced)
+    const labelIdxs = sorted.length <= 5
+      ? sorted.map((_,i) => i)
+      : [0,1,2,3,4].map(i => Math.round(i*(sorted.length-1)/4));
+    const xLabels = [...new Set(labelIdxs)].map(i => {
+      const d = new Date(sorted[i].date + 'T12:00:00');
+      const lbl = (d.getMonth()+1) + '/' + d.getDate();
+      return `<text x="${xScale(i).toFixed(1)}" y="${(H-6)}" text-anchor="middle" fill="#6b7a99" font-size="9" font-family="DM Sans,sans-serif">${lbl}</text>`;
+    }).join('');
+
+    // Y axis labels (3 ticks)
+    const yLabels = [yMin + (yMax-yMin)*0.1, yMin + (yMax-yMin)*0.5, yMin + (yMax-yMin)*0.9].map(v => {
+      return `<text x="${PAD.left-6}" y="${(yScale(v)+3).toFixed(1)}" text-anchor="end" fill="#6b7a99" font-size="9" font-family="DM Sans,sans-serif">${Math.round(v)}</text>`;
+    }).join('');
+
+    // Dots
+    const dots = sorted.map((e,i) =>
+      `<circle cx="${xScale(i).toFixed(1)}" cy="${yScale(e.weight).toFixed(1)}" r="3.5" fill="#3a86ff" stroke="#0d1117" stroke-width="1.5"/>`
+    ).join('');
+
+    return `
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;margin:8px 0">
+      <defs>
+        <linearGradient id="wGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#3a86ff" stop-opacity="0.3"/>
+          <stop offset="100%" stop-color="#3a86ff" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <!-- grid lines -->
+      <line x1="${PAD.left}" y1="${PAD.top}" x2="${PAD.left}" y2="${PAD.top+cH}" stroke="#1e2535" stroke-width="1"/>
+      <line x1="${PAD.left}" y1="${PAD.top+cH}" x2="${PAD.left+cW}" y2="${PAD.top+cH}" stroke="#1e2535" stroke-width="1"/>
+      <!-- fill -->
+      <path d="${fillPath}" fill="url(#wGrad)"/>
+      <!-- actual line -->
+      <path d="${linePath}" fill="none" stroke="#3a86ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      ${trendPath ? `<!-- trend line --><path d="${trendPath}" fill="none" stroke="#ffd166" stroke-width="1.5" stroke-dasharray="5,3" stroke-linecap="round"/>` : ''}
+      ${dots}
+      ${yLabels}
+      ${xLabels}
+    </svg>
+    ${trendPath ? '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><svg width="18" height="8"><line x1="0" y1="4" x2="18" y2="4" stroke="#ffd166" stroke-width="1.5" stroke-dasharray="4,2"/></svg><span style="font-size:11px;color:#8891a8">Trend</span><svg width="18" height="8" style="margin-left:8px"><line x1="0" y1="4" x2="18" y2="4" stroke="#3a86ff" stroke-width="2"/></svg><span style="font-size:11px;color:#8891a8">Actual</span></div>' : ''}`;
+  }
+
+  // Stats
+  const statsHTML = () => {
+    if (sorted.length === 0) return '';
+    const first = sorted[0].weight, last = sorted[sorted.length-1].weight;
+    const diff = Math.round((last - first) * 10) / 10;
+    const sign = diff > 0 ? '+' : '';
+    const color = diff < 0 ? '#06d6a0' : diff > 0 ? '#ff6b6b' : '#8891a8';
+    return `
+    <div style="display:flex;gap:10px;margin-bottom:12px">
+      <div class="macro-tile" style="flex:1">
+        <div class="macro-tile-label">Current</div>
+        <div class="macro-tile-val" style="color:#3a86ff">${last}<span style="font-size:11px"> ${unit}</span></div>
+      </div>
+      <div class="macro-tile" style="flex:1">
+        <div class="macro-tile-label">Starting</div>
+        <div class="macro-tile-val" style="color:#8891a8">${first}<span style="font-size:11px"> ${unit}</span></div>
+      </div>
+      <div class="macro-tile" style="flex:1">
+        <div class="macro-tile-label">Change</div>
+        <div class="macro-tile-val" style="color:${color}">${sign}${diff}<span style="font-size:11px"> ${unit}</span></div>
+      </div>
+    </div>`;
+  };
+
+  // Log entries (most recent first)
+  const logRows = [...sorted].reverse().map(e => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #1e2535">
+      <div>
+        <div style="font-size:14px;font-weight:600;color:#e2e8f0">${e.weight} ${unit}</div>
+        <div style="font-size:11px;color:#6b7a99">${formatDate(e.date)} · ${e.time}</div>
+      </div>
+      <button onclick="deleteWeightEntry(${e.ts})" style="background:none;border:none;color:#4a5568;font-size:16px;cursor:pointer;padding:4px 8px">×</button>
+    </div>`).join('');
+
+  document.getElementById('content').innerHTML = `
+    <div class="card">
+      <div style="font-size:13px;font-weight:700;color:#8891a8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px">Log Weight</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="amount-wrap" style="flex:1">
+          <input type="text" inputmode="decimal" id="weightInput" placeholder="e.g. 268.5"
+            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+            value="${S.weightInput}"
+            style="padding-right:44px"
+            onkeydown="if(event.key==='Enter'){S.weightInput=this.value;addWeightEntry();}else{S.weightInput=this.value;}">
+          <span class="amount-unit" style="font-size:11px">${unit}</span>
+        </div>
+        <button class="btn-primary" style="width:auto;padding:12px 18px;border-radius:12px;white-space:nowrap"
+          onclick="S.weightInput=document.getElementById('weightInput').value;addWeightEntry()">
+          + Log
+        </button>
+      </div>
+    </div>
+
+    ${sorted.length > 0 ? `
+    <div class="card">
+      <div style="font-size:13px;font-weight:700;color:#8891a8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px">Progress</div>
+      ${statsHTML()}
+      ${buildChart()}
+    </div>
+
+    <div class="card">
+      <div style="font-size:13px;font-weight:700;color:#8891a8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">History</div>
+      ${logRows}
+    </div>` : `
+    <div class="card" style="text-align:center;padding:40px 20px">
+      <div style="font-size:32px;margin-bottom:12px">⚖️</div>
+      <div style="color:#8891a8;font-size:14px">No weigh-ins yet.</div>
+      <div style="color:#6b7a99;font-size:12px;margin-top:6px">Log your first weight above to start tracking progress.</div>
+    </div>`}
+  `;
+}
+
 function renderHistory() {
   const dates = getLoggedDates();
   if (S.entries.length > 0 && !dates.includes(TODAY)) dates.unshift(TODAY);
@@ -1027,6 +1214,7 @@ function exportData() {
     targets: S.targets,
     dates,
     entries,
+    weightLog: getWeightLog(),
   };
   const json = JSON.stringify(payload, null, 2);
   const filename = `macroscan-backup-${TODAY}.json`;
@@ -1076,6 +1264,7 @@ function importData() {
       });
       localStorage.setItem('ms:dates', JSON.stringify(data.dates || []));
       // Reload today's entries
+      if (data.weightLog) saveWeightLog(data.weightLog);
       const todayEntries = data.entries[TODAY];
       S.entries = todayEntries || [];
       save();

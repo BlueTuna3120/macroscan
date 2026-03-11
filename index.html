@@ -1275,12 +1275,18 @@ function showExportModal() {
   ta.value = json; // Set via .value not innerHTML — safe for all characters
 
   const copyBtn = document.createElement('button');
-  copyBtn.textContent = 'Select All Text';
-  copyBtn.style.cssText = 'background:linear-gradient(135deg,#3a86ff,#00d2ff);border:none;color:#fff;border-radius:12px;padding:14px;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;width:100%';
+  copyBtn.id = 'copyBtn';
+  copyBtn.textContent = 'Select All & Copy';
+  copyBtn.style.cssText = 'background:linear-gradient(135deg,#3a86ff,#00d2ff);border:none;color:#fff;border-radius:12px;padding:14px;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;width:100%;flex-shrink:0';
   copyBtn.onclick = selectExportText;
+
+  const hint = document.createElement('div');
+  hint.style.cssText = 'font-size:11px;color:#6b7a99;text-align:center;margin-top:-4px';
+  hint.textContent = 'If copy fails, long-press the text and choose Select All → Copy';
 
   inner.appendChild(header);
   inner.appendChild(ta);
+  inner.appendChild(hint);
   inner.appendChild(copyBtn);
   modal.appendChild(inner);
   document.body.appendChild(modal);
@@ -1289,15 +1295,16 @@ function showExportModal() {
 function selectExportText() {
   const ta = document.getElementById('exportText');
   if (!ta) return;
+  // Make sure it's not readonly temporarily so iOS shows copy menu
+  ta.readOnly = false;
   ta.focus();
-  ta.select();
-  // iOS fallback
-  const range = document.createRange();
-  range.selectNodeContents(ta);
-  const sel = window.getSelection();
-  sel.removeAllRanges();
-  sel.addRange(range);
-  try { document.execCommand('copy'); } catch(e) {}
+  ta.setSelectionRange(0, ta.value.length);
+  // iOS: use execCommand first, fall back to showing instructions
+  let copied = false;
+  try { copied = document.execCommand('copy'); } catch(e) {}
+  ta.readOnly = true;
+  const btn = document.getElementById('copyBtn');
+  if (btn) btn.textContent = copied ? '✓ Copied to Clipboard!' : 'Text Selected — Long-press to Copy';
 }
 
 function showImportModal() {

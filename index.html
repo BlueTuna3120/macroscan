@@ -279,6 +279,8 @@ const S = {
   _lastLookupId: 0,
   _searchId: 0,
   _syncState: 'idle',  // idle | pending | syncing | ok | error
+  ringMode: 'consumed',  // consumed | remaining
+  _editEntry: null,
 };
 
 // ── Storage ───────────────────────────────────────────────────────────────
@@ -376,6 +378,37 @@ function getWeightLog() {
 function saveWeightLog(log) {
   if (!S.currentUser) return;
   try { localStorage.setItem(`ms:weightlog:${S.currentUser}`, JSON.stringify(log)); } catch(e) {}
+}
+
+// ── Favorites ─────────────────────────────────────────────────────────────
+function getFavorites() {
+  if (!S.currentUser) return [];
+  try { return JSON.parse(localStorage.getItem(`ms:favorites:${S.currentUser}`) || '[]'); } catch(e) { return []; }
+}
+function saveFavorites(favs) {
+  if (!S.currentUser) return;
+  try { localStorage.setItem(`ms:favorites:${S.currentUser}`, JSON.stringify(favs)); } catch(e) {}
+}
+function isFavorite(name) {
+  return getFavorites().some(f => f.name === name);
+}
+function toggleFavorite(food) {
+  let favs = getFavorites();
+  const idx = favs.findIndex(f => f.name === food.name);
+  if (idx >= 0) {
+    favs.splice(idx, 1);
+  } else {
+    favs.unshift({
+      name: food.name,
+      calories: food.calories, protein: food.protein,
+      carbs: food.carbs, fat: food.fat,
+      servingGrams: food.servingGrams || null,
+      servingLabel: food.servingLabel || null,
+      barcode: food.barcode || '',
+    });
+  }
+  saveFavorites(favs);
+  render();
 }
 
 // ── Auto Sync ─────────────────────────────────────────────────────────────
@@ -661,8 +694,9 @@ function render() {
       renderSearch();
     }
   }
-  else if (S.screen === 'history') renderHistory();
-  else if (S.screen === 'weight')  renderWeight();
+  else if (S.screen === 'history')   renderHistory();
+  else if (S.screen === 'favorites') renderFavorites();
+  else if (S.screen === 'weight')    renderWeight();
 
   renderNav();
 
@@ -684,10 +718,11 @@ function renderNav() {
   // Hide nav on users screen
   if (S.screen === 'users') { nav.innerHTML = ''; return; }
   nav.innerHTML = [
-    { id:'summary', icon:'📊', label:'Today'    },
-    { id:'history', icon:'📅', label:'History'  },
-    { id:'weight',  icon:'⚖️',  label:'Weight'   },
-    { id:'setup',   icon:'⚙️',  label:'Settings' },
+    { id:'summary',   icon:'📊', label:'Today'    },
+    { id:'history',   icon:'📅', label:'History'  },
+    { id:'favorites', icon:'⭐', label:'Faves'    },
+    { id:'weight',    icon:'⚖️',  label:'Weight'   },
+    { id:'setup',     icon:'⚙️',  label:'Settings' },
   ].map(t => `
     <button class="nav-tab ${(S.screen===t.id||(t.id==='summary'&&S.screen==='search'))?'active':''}"
       onclick="navTo('${t.id}')">
@@ -931,13 +966,27 @@ function renderSummary(totals) {
         <div class="calorie-bar-track"><div class="calorie-bar-fill" style="width:${pct}%;background:${barColor}"></div></div>
       </div>
       <div class="rings-row">
-        ${ringHTML(Math.round(totals.protein), t.protein, '#ff6b6b', `Protein /${t.protein}g`)}
-        ${ringHTML(Math.round(totals.carbs),   t.carbs,   '#ffd166', `Carbs /${t.carbs}g`)}
-        ${ringHTML(Math.round(totals.fat),     t.fat,     '#06d6a0', `Fat /${t.fat}g`)}
+        ${S.ringMode === 'remaining'
+          ? ringHTML(Math.max(0, Math.round(t.protein - totals.protein)), t.protein, '#ff6b6b', `Protein left`)
+          : ringHTML(Math.round(totals.protein), t.protein, '#ff6b6b', `Protein /${t.protein}g`)}
+        ${S.ringMode === 'remaining'
+          ? ringHTML(Math.max(0, Math.round(t.carbs - totals.carbs)), t.carbs, '#ffd166', `Carbs left`)
+          : ringHTML(Math.round(totals.carbs), t.carbs, '#ffd166', `Carbs /${t.carbs}g`)}
+        ${S.ringMode === 'remaining'
+          ? ringHTML(Math.max(0, Math.round(t.fat - totals.fat)), t.fat, '#06d6a0', `Fat left`)
+          : ringHTML(Math.round(totals.fat), t.fat, '#06d6a0', `Fat /${t.fat}g`)}
       </div>
       <div class="targets-row">
         ${[['Protein',t.protein],['Carbs',t.carbs],['Fat',t.fat]].map(([l,v]) =>
           `<div class="target-cell"><div class="t-label">Target</div><div class="t-val">${v}g</div></div>`).join('')}
+      </div>
+      <div style="display:flex;justify-content:center;margin-top:14px">
+        <div class="toggle-group">
+          <button class="toggle-btn ${S.ringMode==='consumed'?'active':''}" onclick="S.ringMode='consumed';render()">
+            <div class="tb-label">Consumed</div></button>
+          <button class="toggle-btn ${S.ringMode==='remaining'?'active':''}" onclick="S.ringMode='remaining';render()">
+            <div class="tb-label">Remaining</div></button>
+        </div>
       </div>
     </div>
     <div class="saved-badge"><span class="saved-dot">●</span><span class="saved-text">Profile & log saved automatically</span></div>
@@ -975,7 +1024,12 @@ function renderWeeklyChart() {
   const maxCal = Math.max(S.targets.calories * 1.1, ...data.map(d => d.calories), 1);
   const daysWithData = data.filter(d => d.calories > 0);
   const avg = key => daysWithData.length ? Math.round(daysWithData.reduce((s,d)=>s+d[key],0)/daysWithData.length) : 0;
-  const hitDays = data.filter(d => d.calories > 0 && d.protein >= S.targets.protein && d.calories <= S.targets.calories * 1.1).length;
+  // Goal day = calories at least 80% of target, protein at least 90% of target, calories not over 115%
+  const hitDays = data.filter(d =>
+    d.calories >= S.targets.calories * 0.8 &&
+    d.protein  >= S.targets.protein  * 0.9 &&
+    d.calories <= S.targets.calories * 1.15
+  ).length;
   return `
     <div class="chart-card">
       <div class="chart-header">
@@ -1113,6 +1167,7 @@ function renderSearch() {
     </div>
     ${S.searchError ? `<div class="error-box">${escHtml(S.searchError)}</div>` : ''}
     ${resultsHTML}
+    ${recentFoodsHTML()}
     <div class="card" style="padding:0;overflow:hidden">
       <button class="custom-toggle" onclick="toggleCustom()">
         <span>✏️ Enter Custom Food Manually</span><span>${S.showCustom?'▲':'▼'}</span>
@@ -1217,7 +1272,14 @@ function renderFoodResult() {
       </div>
     </div>
     <button class="btn-primary" onclick="addEntry()">+ Add to Log</button>
-    <button class="btn-secondary" onclick="searchAnother()">↩ Search Another</button>`;
+    <button class="btn-secondary" onclick="searchAnother()">↩ Search Another</button>
+    <button onclick="toggleFavorite(S.scannedFood)"
+      style="background:${S.scannedFood&&isFavorite(S.scannedFood.name)?'#1d3a0a':'#1e2535'};
+             border:1px solid ${S.scannedFood&&isFavorite(S.scannedFood.name)?'#2a5e10':'#2d3748'};
+             border-radius:12px;color:${S.scannedFood&&isFavorite(S.scannedFood.name)?'#4ade80':'#8891a8'};
+             padding:11px 24px;font-size:13px;font-weight:600;cursor:pointer;width:100%;font-family:inherit">
+      ${S.scannedFood&&isFavorite(S.scannedFood.name)?'★ Remove from Favorites':'☆ Save to Favorites'}
+    </button>`;
 }
 
 function searchAnother() {
@@ -1342,6 +1404,8 @@ function renderHistory() {
   if (S.entries.length === 0) dates = dates.filter(d => d !== TODAY);
   // Filter out stale dates that have no entries (e.g. after clearing old days)
   dates = dates.filter(d => d === TODAY ? S.entries.length > 0 : getEntriesForDate(d).length > 0);
+  // Cap at 30 days
+  dates = dates.slice(0, 30);
   if (!dates.length) {
     document.getElementById('content').innerHTML = `
       <div class="hist-empty">
@@ -1353,6 +1417,7 @@ function renderHistory() {
   }
   const t = S.targets;
   document.getElementById('content').innerHTML = `
+    <div style="font-size:12px;color:#6b7a99;margin-bottom:6px;padding:0 4px">Showing last ${dates.length} day${dates.length!==1?'s':''} (max 30)</div>
     <div style="display:flex;flex-direction:column;gap:10px">
       ${dates.map((date,di) => {
         const entries = date===TODAY ? S.entries : getEntriesForDate(date);
@@ -1381,11 +1446,25 @@ function renderHistory() {
             ${entries.length?`
             <div class="hist-entries">
               ${entries.map(e=>`
-                <div class="hist-entry">
-                  <div><div class="hist-entry-name">${escHtml(e.name)}</div>
-                    <div class="hist-entry-weight">${e.displayWeight} ${escHtml(e.displayUnit)}</div></div>
-                  <div><div class="hist-entry-cals">${e.calories} kcal</div>
-                    <div class="hist-entry-macros">P:${e.protein} C:${e.carbs} F:${e.fat}</div></div>
+                <div class="hist-entry" style="align-items:center;gap:6px">
+                  <div style="flex:1;min-width:0">
+                    <div class="hist-entry-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(e.name)}</div>
+                    <div class="hist-entry-weight">${e.displayWeight} ${escHtml(e.displayUnit)}</div>
+                  </div>
+                  <div style="text-align:right;flex-shrink:0">
+                    <div class="hist-entry-cals">${e.calories} kcal</div>
+                    <div class="hist-entry-macros">P:${e.protein} C:${e.carbs} F:${e.fat}</div>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:3px;flex-shrink:0">
+                    <button onclick="copyEntryToToday('${date}',${e.id})"
+                      style="background:#0f1f35;border:1px solid #1e3a5f;border-radius:6px;color:#3a86ff;font-size:10px;
+                             padding:3px 8px;cursor:pointer;font-family:inherit;white-space:nowrap">+ Today</button>
+                    <button onclick="editHistoryEntry('${date}',${e.id})"
+                      style="background:#1e2535;border:1px solid #2d3748;border-radius:6px;color:#8891a8;font-size:10px;
+                             padding:3px 8px;cursor:pointer;font-family:inherit">Edit</button>
+                    <button onclick="deleteHistoryEntry('${date}',${e.id})"
+                      style="background:none;border:none;color:#4a5568;font-size:13px;cursor:pointer;padding:2px 4px;line-height:1">✕</button>
+                  </div>
                 </div>`).join('')}
             </div>`:'<div style="padding:12px 16px;color:#4a5568;font-size:13px">No entries</div>'}
           </div>
@@ -1399,6 +1478,48 @@ function toggleHistDay(id) {
   if(!body) return;
   const open=body.classList.toggle('open');
   if(arrow) arrow.textContent=open?'▲':'▼';
+}
+
+// ── Favorites Screen ───────────────────────────────────────────────────────
+function renderFavorites() {
+  const favs = getFavorites();
+  if (!favs.length) {
+    document.getElementById('content').innerHTML = `
+      <div class="card" style="text-align:center;padding:40px 20px">
+        <div style="font-size:40px;margin-bottom:12px">⭐</div>
+        <div style="font-size:16px;font-weight:700;margin-bottom:6px">No favorites yet</div>
+        <div style="font-size:13px;color:#6b7a99;line-height:1.5">
+          When you're on the food result screen, tap<br>
+          <strong style="color:#e2e8f0">☆ Save to Favorites</strong> to save foods here<br>for quick re-logging.
+        </div>
+      </div>`;
+    return;
+  }
+  document.getElementById('content').innerHTML = `
+    <div style="font-size:12px;color:#6b7a99;margin-bottom:6px;padding:0 4px">${favs.length} saved food${favs.length!==1?'s':''}</div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      ${favs.map((f,i) => `
+        <div style="background:linear-gradient(135deg,#1a1f2e,#131824);border-radius:14px;border:1px solid #1e2535;overflow:hidden">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;gap:10px">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(f.name)}</div>
+              <div style="font-size:11px;color:#6b7a99;margin-top:2px">${f.calories} kcal · P:${f.protein} C:${f.carbs} F:${f.fat} /100g</div>
+            </div>
+            <div style="display:flex;gap:6px;flex-shrink:0">
+              <button onclick="logFavorite(${i})"
+                style="background:linear-gradient(135deg,#3a86ff,#00d2ff);border:none;border-radius:10px;color:#fff;
+                       font-size:12px;font-weight:700;padding:8px 14px;cursor:pointer;font-family:inherit;white-space:nowrap">
+                + Log
+              </button>
+              <button onclick="removeFavorite(${i})"
+                style="background:#1e2535;border:1px solid #2d3748;border-radius:10px;color:#ff6b6b;
+                       font-size:12px;padding:8px 10px;cursor:pointer;font-family:inherit">
+                ✕
+              </button>
+            </div>
+          </div>
+        </div>`).join('')}
+    </div>`;
 }
 
 // ── Scanner ───────────────────────────────────────────────────────────────
@@ -1615,6 +1736,238 @@ function addEntry() {
 }
 
 function deleteEntry(i){S.entries.splice(i,1);save();render();}
+
+// ── History Entry Handlers ─────────────────────────────────────────────────
+function deleteHistoryEntry(date, entryId) {
+  if (!confirm('Remove this entry?')) return;
+  if (date === TODAY) {
+    const idx = S.entries.findIndex(e => e.id === entryId);
+    if (idx >= 0) { S.entries.splice(idx, 1); save(); render(); }
+  } else {
+    const entries = getEntriesForDate(date).filter(e => e.id !== entryId);
+    localStorage.setItem(`ms:entries:${S.currentUser}:${date}`, JSON.stringify(entries));
+    // Remove date from index if now empty
+    if (!entries.length) {
+      const dates = getLoggedDates().filter(d => d !== date);
+      localStorage.setItem(`ms:dates:${S.currentUser}`, JSON.stringify(dates));
+    }
+    render();
+  }
+}
+
+function copyEntryToToday(date, entryId) {
+  const entries = date === TODAY ? S.entries : getEntriesForDate(date);
+  const entry = entries.find(e => e.id === entryId);
+  if (!entry) return;
+  // Reconstruct per-100g food data from stored entry
+  const grams = entry.grams || 100;
+  const food = {
+    name: entry.name,
+    calories: Math.round(entry.calories / grams * 100),
+    protein:  Math.round(entry.protein  / grams * 100 * 10) / 10,
+    carbs:    Math.round(entry.carbs    / grams * 100 * 10) / 10,
+    fat:      Math.round(entry.fat      / grams * 100 * 10) / 10,
+    servingGrams: null, servingLabel: null, barcode: '',
+  };
+  S.scannedFood = food;
+  S.foodReady = true;
+  S.foodUnit = 'g';
+  S.foodWeightDisplay = String(Math.round(grams));
+  S.screen = 'search';
+  render();
+}
+
+function editHistoryEntry(date, entryId) {
+  const entries = date === TODAY ? S.entries : getEntriesForDate(date);
+  const entry = entries.find(e => e.id === entryId);
+  if (!entry) return;
+  const grams = entry.grams || 100;
+  S._editEntry = {
+    date, entryId,
+    per100: {
+      calories: entry.calories / grams * 100,
+      protein:  entry.protein  / grams * 100,
+      carbs:    entry.carbs    / grams * 100,
+      fat:      entry.fat      / grams * 100,
+    },
+    entry,
+  };
+  // Show inline edit modal
+  const existing = document.getElementById('editEntryModal');
+  if (existing) existing.remove();
+  const modal = document.createElement('div');
+  modal.id = 'editEntryModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9999;display:flex;align-items:flex-end;justify-content:center;padding:20px;box-sizing:border-box;';
+  modal.innerHTML = `
+    <div style="background:#1a2033;border-radius:18px;width:100%;max-width:440px;padding:22px;box-sizing:border-box">
+      <div style="font-size:16px;font-weight:700;margin-bottom:4px">Edit Entry</div>
+      <div style="font-size:13px;color:#6b7a99;margin-bottom:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(entry.name)}</div>
+      <label style="font-size:11px;color:#8891a8;text-transform:uppercase;letter-spacing:0.08em;display:block;margin-bottom:4px">Amount (grams)</label>
+      <input id="editGramsInput" type="text" inputmode="decimal"
+        value="${Math.round(grams)}"
+        style="background:#1e2535;border:1px solid #3a86ff;border-radius:10px;color:#e2e8f0;
+               padding:12px 14px;font-size:16px;outline:none;width:100%;box-sizing:border-box;margin-bottom:6px">
+      <div id="editPreview" style="font-size:12px;color:#6b7a99;margin-bottom:16px;min-height:18px"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <button onclick="document.getElementById('editEntryModal').remove();S._editEntry=null;"
+          style="background:#1e2535;border:1px solid #2d3748;border-radius:12px;color:#8891a8;
+                 padding:13px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">Cancel</button>
+        <button onclick="saveHistoryEdit()"
+          style="background:linear-gradient(135deg,#3a86ff,#00d2ff);border:none;border-radius:12px;color:#fff;
+                 padding:13px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Save</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  const input = modal.querySelector('#editGramsInput');
+  const preview = modal.querySelector('#editPreview');
+  function updatePreview() {
+    const g = parseFloat(input.value) || 0;
+    if (!g) { preview.textContent = ''; return; }
+    const r = g / 100;
+    const p = S._editEntry.per100;
+    preview.textContent = `${Math.round(p.calories*r)} kcal · P:${Math.round(p.protein*r*10)/10} C:${Math.round(p.carbs*r*10)/10} F:${Math.round(p.fat*r*10)/10}`;
+  }
+  input.addEventListener('input', updatePreview);
+  updatePreview();
+  setTimeout(() => input.focus(), 50);
+}
+
+function saveHistoryEdit() {
+  if (!S._editEntry) return;
+  const input = document.getElementById('editGramsInput');
+  const newGrams = parseFloat(input ? input.value : '') || 0;
+  if (newGrams <= 0) return;
+  const { date, entryId, per100, entry } = S._editEntry;
+  const ratio = newGrams / 100;
+  const updated = {
+    ...entry,
+    grams: Math.round(newGrams * 10) / 10,
+    displayWeight: Math.round(newGrams * 10) / 10,
+    displayUnit: 'g',
+    calories: Math.round(per100.calories * ratio),
+    protein:  Math.round(per100.protein  * ratio * 10) / 10,
+    carbs:    Math.round(per100.carbs    * ratio * 10) / 10,
+    fat:      Math.round(per100.fat      * ratio * 10) / 10,
+  };
+  if (date === TODAY) {
+    const idx = S.entries.findIndex(e => e.id === entryId);
+    if (idx >= 0) { S.entries[idx] = updated; save(); }
+  } else {
+    const entries = getEntriesForDate(date);
+    const idx = entries.findIndex(e => e.id === entryId);
+    if (idx >= 0) { entries[idx] = updated; localStorage.setItem(`ms:entries:${S.currentUser}:${date}`, JSON.stringify(entries)); }
+  }
+  document.getElementById('editEntryModal')?.remove();
+  S._editEntry = null;
+  render();
+}
+
+// ── Recent Foods (for Search screen) ──────────────────────────────────────
+function recentFoodsHTML() {
+  // Collect unique foods from last 30 days, most recent first
+  const dates = getLoggedDates().slice(0, 30);
+  const seen = new Map(); // name → entry (per-100g reconstructed)
+  const allDates = S.entries.length ? [TODAY, ...dates.filter(d=>d!==TODAY)] : dates;
+  for (const date of allDates) {
+    const entries = date === TODAY ? S.entries : getEntriesForDate(date);
+    for (const e of entries) {
+      if (!seen.has(e.name)) {
+        const grams = e.grams || 100;
+        seen.set(e.name, {
+          name: e.name,
+          calories: Math.round(e.calories / grams * 100),
+          protein:  Math.round(e.protein  / grams * 100 * 10) / 10,
+          carbs:    Math.round(e.carbs    / grams * 100 * 10) / 10,
+          fat:      Math.round(e.fat      / grams * 100 * 10) / 10,
+          lastGrams: Math.round(grams),
+          servingGrams: null, servingLabel: null, barcode: '',
+        });
+      }
+    }
+  }
+  if (!seen.size) return '';
+  const foods = [...seen.values()].slice(0, 20);
+  return `
+    <div class="card" style="padding:0;overflow:hidden">
+      <button class="custom-toggle" onclick="toggleSection('recentFoodsBody','recentFoodsArrow')">
+        <span>🕐 Recent Foods</span><span id="recentFoodsArrow">▼</span>
+      </button>
+      <div class="custom-body" id="recentFoodsBody">
+        <div style="display:flex;flex-direction:column;gap:6px">
+          ${foods.map((f,i) => `
+            <div onclick="selectRecentFood(${i})"
+              style="display:flex;justify-content:space-between;align-items:center;
+                     padding:10px 12px;background:#111827;border-radius:10px;cursor:pointer;gap:10px">
+              <div style="flex:1;min-width:0">
+                <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(f.name)}</div>
+                <div style="font-size:11px;color:#6b7a99">Last: ${f.lastGrams}g · ${f.calories} kcal/100g</div>
+              </div>
+              <div style="font-size:12px;color:#3a86ff;font-weight:700;flex-shrink:0">Re-log →</div>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>`;
+}
+
+// Store recent foods list for selectRecentFood to access
+function selectRecentFood(i) {
+  // Rebuild the same list recentFoodsHTML builds
+  const dates = getLoggedDates().slice(0, 30);
+  const seen = new Map();
+  const allDates = S.entries.length ? [TODAY, ...dates.filter(d=>d!==TODAY)] : dates;
+  for (const date of allDates) {
+    const entries = date === TODAY ? S.entries : getEntriesForDate(date);
+    for (const e of entries) {
+      if (!seen.has(e.name)) {
+        const grams = e.grams || 100;
+        seen.set(e.name, {
+          name: e.name,
+          calories: Math.round(e.calories / grams * 100),
+          protein:  Math.round(e.protein  / grams * 100 * 10) / 10,
+          carbs:    Math.round(e.carbs    / grams * 100 * 10) / 10,
+          fat:      Math.round(e.fat      / grams * 100 * 10) / 10,
+          lastGrams: Math.round(grams),
+          servingGrams: null, servingLabel: null, barcode: '',
+        });
+      }
+    }
+  }
+  const food = [...seen.values()][i];
+  if (!food) return;
+  S.scannedFood = food;
+  S.foodReady = true;
+  S.foodUnit = 'g';
+  S.foodWeightDisplay = String(food.lastGrams);
+  render();
+}
+
+function toggleSection(bodyId, arrowId) {
+  const body = document.getElementById(bodyId);
+  const arrow = document.getElementById(arrowId);
+  if (!body) return;
+  const open = body.classList.toggle('open');
+  if (arrow) arrow.textContent = open ? '▲' : '▼';
+}
+
+// ── Favorites Handlers ────────────────────────────────────────────────────
+function logFavorite(i) {
+  const favs = getFavorites();
+  const food = favs[i];
+  if (!food) return;
+  S.scannedFood = { ...food };
+  S.foodReady = true;
+  S.foodUnit = food.servingGrams ? 'srv' : 'g';
+  S.foodWeightDisplay = food.servingGrams ? '1' : '100';
+  S.screen = 'search';
+  render();
+}
+
+function removeFavorite(i) {
+  const favs = getFavorites();
+  favs.splice(i, 1);
+  saveFavorites(favs);
+  render();
+}
 
 // ── Export / Import ───────────────────────────────────────────────────────
 // buildPayload() exports ALL users so a single push/pull covers the whole group.

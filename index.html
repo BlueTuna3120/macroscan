@@ -1178,7 +1178,7 @@ function renderSearch() {
         <div class="grid-4 mb-12">
           ${[['calories','Calories (kcal)','200'],['protein','Protein (g)','25'],['carbs','Carbs (g)','10'],['fat','Fat (g)','5']].map(([f,l,ph]) => `
             <div><label class="field-label">${l}</label>
-              <input type="decimal" placeholder="${ph}" value="${escHtml(S.customFood[f])}" oninput="S.customFood['${f}']=this.value"></div>`).join('')}
+              <input type="numeric" placeholder="${ph}" value="${escHtml(S.customFood[f])}" oninput="S.customFood['${f}']=this.value"></div>`).join('')}
         </div>
         <div class="hint mb-10">Values are per 100g serving</div>
         <button class="btn-primary" onclick="useCustomFood()">Use This Food →</button>

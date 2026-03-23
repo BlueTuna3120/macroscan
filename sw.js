@@ -1,5 +1,5 @@
 // MacroScan Service Worker — cache-first for app shell, network-only for external APIs
-const CACHE = 'macroscan-v1.1';
+const CACHE = 'macroscan-v1.2';
 const SHELL = ['./index.html', './site.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/icon-180.png'];
 
 self.addEventListener('install', event => {

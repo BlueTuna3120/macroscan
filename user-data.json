@@ -1,0 +1,739 @@
+{
+  "version": "1.1",
+  "exportedAt": "2026-03-24T18:58:56.504Z",
+  "users": {
+    "Blake": {
+      "profile": {
+        "weightLbs": "254",
+        "heightFt": "5",
+        "heightIn": "9",
+        "weightKg": "",
+        "heightCm": "",
+        "age": "29",
+        "gender": "male",
+        "activity": "moderate",
+        "goal": "fat_loss"
+      },
+      "targets": {
+        "calories": 3178,
+        "protein": 229,
+        "carbs": 305,
+        "fat": 116
+      },
+      "unit": "imperial",
+      "foodUnit": "g",
+      "lastModified": 1774353705117,
+      "dates": [
+        "2026-03-24",
+        "2026-03-23",
+        "2026-03-22",
+        "2026-03-21",
+        "2026-03-20",
+        "2026-03-16",
+        "2026-03-15",
+        "2026-03-14",
+        "2026-03-13",
+        "2026-03-12",
+        "2026-03-11",
+        "2026-03-10"
+      ],
+      "entries": {
+        "2026-03-24": [
+          {
+            "id": 1774353705117,
+            "name": "Turkey Ham Cheddar",
+            "grams": 100,
+            "displayWeight": 100,
+            "displayUnit": "g",
+            "calories": 150,
+            "protein": 12,
+            "carbs": 2,
+            "fat": 10
+          }
+        ],
+        "2026-03-23": [
+          {
+            "id": 1774267176540,
+            "name": "Turkey Colby Jack Almonds",
+            "grams": 56,
+            "displayWeight": 1,
+            "displayUnit": "1 package (56 g)",
+            "calories": 157,
+            "protein": 6.2,
+            "carbs": 2.2,
+            "fat": 6.7
+          },
+          {
+            "id": 1774270157870,
+            "name": "High Quality Protein Chocolate",
+            "grams": 100,
+            "displayWeight": 100,
+            "displayUnit": "g",
+            "calories": 150,
+            "protein": 30,
+            "carbs": 4,
+            "fat": 2.5
+          },
+          {
+            "id": 1774281783437,
+            "name": "Original Turkey Stick",
+            "grams": 32,
+            "displayWeight": 1,
+            "displayUnit": "1 portion (32 g)",
+            "calories": 80,
+            "protein": 12,
+            "carbs": 0,
+            "fat": 3.5
+          },
+          {
+            "id": 1774288086079,
+            "name": "Chipotle Quesadillas ",
+            "grams": 100,
+            "displayWeight": 100,
+            "displayUnit": "g",
+            "calories": 524,
+            "protein": 68,
+            "carbs": 38.5,
+            "fat": 5
+          },
+          {
+            "id": 1774288109795,
+            "name": "Pink Slush",
+            "grams": 354.9,
+            "displayWeight": 12,
+            "displayUnit": "floz",
+            "calories": 4,
+            "protein": 0,
+            "carbs": 2.8,
+            "fat": 0
+          },
+          {
+            "id": 1774309673082,
+            "name": "Find beef sw pot",
+            "grams": 100,
+            "displayWeight": 100,
+            "displayUnit": "g",
+            "calories": 570,
+            "protein": 53,
+            "carbs": 66,
+            "fat": 10
+          }
+        ],
+        "2026-03-22": [
+          {
+            "id": 1774198467588,
+            "name": "Honey Wheat",
+            "grams": 52,
+            "displayWeight": 52,
+            "displayUnit": "g",
+            "calories": 140,
+            "protein": 6,
+            "carbs": 28,
+            "fat": 1
+          },
+          {
+            "id": 1774198619789,
+            "name": "Extra Large White Eggs",
+            "grams": 168,
+            "displayWeight": 168,
+            "displayUnit": "g",
+            "calories": 240,
+            "protein": 21,
+            "carbs": 0,
+            "fat": 15
+          },
+          {
+            "id": 1774198646518,
+            "name": "Fully Cooked Original Breakfast Turkey Patties",
+            "grams": 100,
+            "displayWeight": 100,
+            "displayUnit": "g",
+            "calories": 180,
+            "protein": 16,
+            "carbs": 0,
+            "fat": 12
+          },
+          {
+            "id": 1774198708856,
+            "name": "Original",
+            "grams": 14,
+            "displayWeight": 1,
+            "displayUnit": "1 Tbsp (14 g)",
+            "calories": 50,
+            "protein": 0,
+            "carbs": 0,
+            "fat": 5
+          },
+          {
+            "id": 1774202716479,
+            "name": "Pink Slush",
+            "grams": 354.9,
+            "displayWeight": 12,
+            "displayUnit": "floz",
+            "calories": 4,
+            "protein": 0,
+            "carbs": 2.8,
+            "fat": 0
+          },
+          {
+            "id": 1774211397240,
+            "name": "Caramel Crunch Protein Bar",
+            "grams": 48,
+            "displayWeight": 1,
+            "displayUnit": "48g",
+            "calories": 190,
+            "protein": 0,
+            "carbs": 18,
+            "fat": 7
+          },
+          {
+            "id": 1774229306810,
+            "name": "Chipotle Quesadillas ",
+            "grams": 100,
+            "displayWeight": 100,
+            "displayUnit": "g",
+            "calories": 524,
+            "protein": 68,
+            "carbs": 38.5,
+            "fat": 5
+          },
+          {
+            "id": 1774229375170,
+            "name": "Salad",
+            "grams": 100,
+            "displayWeight": 100,
+            "displayUnit": "g",
+            "calories": 150,
+            "protein": 1,
+            "carbs": 9,
+            "fat": 12
+          }
+        ],
+        "2026-03-21": [
+          {
+            "id": 1774138216746,
+            "name": "Egg Bites ",
+            "grams": 100,
+            "displayWeight": 100,
+            "displayUnit": "g",
+            "calories": 216,
+            "protein": 18,
+            "carbs": 2,
+            "fat": 12
+          },
+          {
+            "id": 1774138257311,
+            "name": "Red Lentil Rotini",
+            "grams": 68,
+            "displayWeight": 68,
+            "displayUnit": "g",
+            "calories": 231,
+            "protein": 17,
+            "carbs": 0,
+            "fat": 1.8
+          },
+          {
+            "id": 1774138335520,
+            "name": "Cottage Cheese",
+            "grams": 60,
+            "displayWeight": 60,
+            "displayUnit": "g",
+            "calories": 58,
+            "protein": 6.9,
+            "carbs": 2.6,
+            "fat": 2.6
+          },
+          {
+            "id": 1774138368290,
+            "name": "Neufchâtel Cheese",
+            "grams": 25,
+            "displayWeight": 25,
+            "displayUnit": "g",
+            "calories": 63,
+            "protein": 1.8,
+            "carbs": 1.8,
+            "fat": 5.4
+          },
+          {
+            "id": 1774138393818,
+            "name": "The Laughing Cow Original Spreadable Cheese Wedges",
+            "grams": 19,
+            "displayWeight": 1,
+            "displayUnit": "1 wedge (19 g)",
+            "calories": 45,
+            "protein": 2,
+            "carbs": 1,
+            "fat": 3.5
+          },
+          {
+            "id": 1774138466071,
+            "name": "Olive Oil",
+            "grams": 100,
+            "displayWeight": 100,
+            "displayUnit": "g",
+            "calories": 120,
+            "protein": 0,
+            "carbs": 0,
+            "fat": 14
+          },
+          {
+            "id": 1774138595313,
+            "name": "Chicken",
+            "grams": 100,
+            "displayWeight": 100,
+            "displayUnit": "g",
+            "calories": 438,
+            "protein": 56,
+            "carbs": 0,
+            "fat": 23
+          }
+        ],
+        "2026-03-20": [
+          {
+            "id": 1774013157601,
+            "name": "Cotton Candy Energy",
+            "grams": 354.9,
+            "displayWeight": 12,
+            "displayUnit": "floz",
+            "calories": 11,
+            "protein": 0,
+            "carbs": 2.8,
+            "fat": 0
+          },
+          {
+            "id": 1774013204021,
+            "name": "Turkey Colby Jack Almonds",
+            "grams": 56,
+            "displayWeight": 1,
+            "displayUnit": "1 package (56 g)",
+            "calories": 157,
+            "protein": 6.2,
+            "carbs": 2.2,
+            "fat": 6.7
+          },
+          {
+            "id": 1774033497129,
+            "name": "Cotton Candy Energy",
+            "grams": 354.9,
+            "displayWeight": 12,
+            "displayUnit": "floz",
+            "calories": 11,
+            "protein": 0,
+            "carbs": 2.8,
+            "fat": 0
+          }
+        ],
+        "2026-03-16": [
+          {
+            "id": 1773657305957,
+            "name": "Extra Large White Eggs",
+            "grams": 224,
+            "displayWeight": 4,
+            "displayUnit": "1 egg (56 g)",
+            "calories": 320,
+            "protein": 28,
+            "carbs": 0,
+            "fat": 19.9
+          },
+          {
+            "id": 1773657459411,
+            "name": "Honey Wheat",
+            "grams": 52,
+            "displayWeight": 2,
+            "displayUnit": "26g",
+            "calories": 140,
+            "protein": 6,
+            "carbs": 28,
+            "fat": 1
+          },
+          {
+            "id": 1773657674873,
+            "name": "Original",
+            "grams": 9,
+            "displayWeight": 9,
+            "displayUnit": "g",
+            "calories": 32,
+            "protein": 0,
+            "carbs": 0,
+            "fat": 3.2
+          },
+          {
+            "id": 1773681787383,
+            "name": "Hunts Bros Breakfast ",
+            "grams": 100,
+            "displayWeight": 100,
+            "displayUnit": "g",
+            "calories": 500,
+            "protein": 23,
+            "carbs": 48,
+            "fat": 24
+          }
+        ],
+        "2026-03-15": [
+          {
+            "id": 1773593400650,
+            "name": "Pink Slush",
+            "grams": 355,
+            "displayWeight": 355,
+            "displayUnit": "g",
+            "calories": 4,
+            "protein": 0,
+            "carbs": 2.8,
+            "fat": 0
+          },
+          {
+            "id": 1773594006106,
+            "name": "Big Bad Breakfast ",
+            "grams": 100,
+            "displayWeight": 100,
+            "displayUnit": "g",
+            "calories": 600,
+            "protein": 19,
+            "carbs": 18,
+            "fat": 45
+          },
+          {
+            "id": 1773625161326,
+            "name": "TacoBell",
+            "grams": 100,
+            "displayWeight": 100,
+            "displayUnit": "g",
+            "calories": 680,
+            "protein": 38,
+            "carbs": 64,
+            "fat": 32
+          }
+        ],
+        "2026-03-14": [
+          {
+            "id": 1773498356243,
+            "name": "Big Bad Breakfast",
+            "grams": 100,
+            "displayWeight": 100,
+            "displayUnit": "g",
+            "calories": 615,
+            "protein": 31,
+            "carbs": 40,
+            "fat": 36
+          },
+          {
+            "id": 1773507883995,
+            "name": "Peanut Butter Sandwich Cookies",
+            "grams": 56,
+            "displayWeight": 1,
+            "displayUnit": "1 pack (56 g)",
+            "calories": 270,
+            "protein": 4,
+            "carbs": 39,
+            "fat": 11
+          },
+          {
+            "id": 1773534806158,
+            "name": "Steak and Potatoes ",
+            "grams": 100,
+            "displayWeight": 100,
+            "displayUnit": "g",
+            "calories": 789,
+            "protein": 50,
+            "carbs": 20.8,
+            "fat": 56
+          }
+        ],
+        "2026-03-13": [
+          {
+            "id": 1773412822017,
+            "name": "Cinnamon Rolls With Icing",
+            "grams": 88,
+            "displayWeight": 2,
+            "displayUnit": "1 portion (44 g)",
+            "calories": 280,
+            "protein": 4,
+            "carbs": 48,
+            "fat": 9
+          },
+          {
+            "id": 1773412839237,
+            "name": "Fully Cooked Original Breakfast Turkey Patties",
+            "grams": 100,
+            "displayWeight": 2,
+            "displayUnit": "1 serving (50 g)",
+            "calories": 180,
+            "protein": 16,
+            "carbs": 0,
+            "fat": 12
+          },
+          {
+            "id": 1773420750767,
+            "name": "Pink Slush",
+            "grams": 354.9,
+            "displayWeight": 12,
+            "displayUnit": "floz",
+            "calories": 4,
+            "protein": 0,
+            "carbs": 2.8,
+            "fat": 0
+          },
+          {
+            "id": 1773426127573,
+            "name": "Fully Cooked Original Breakfast Turkey Patties",
+            "grams": 50,
+            "displayWeight": 1,
+            "displayUnit": "1 serving (50 g)",
+            "calories": 90,
+            "protein": 8,
+            "carbs": 0,
+            "fat": 6
+          },
+          {
+            "id": 1773426523521,
+            "name": "Chick Fli A grilled chicken sandwich ",
+            "grams": 100,
+            "displayWeight": 100,
+            "displayUnit": "g",
+            "calories": 390,
+            "protein": 28,
+            "carbs": 45,
+            "fat": 11
+          },
+          {
+            "id": 1773461326306,
+            "name": "Birria tacos ",
+            "grams": 100,
+            "displayWeight": 100,
+            "displayUnit": "g",
+            "calories": 880,
+            "protein": 56,
+            "carbs": 44,
+            "fat": 48
+          }
+        ],
+        "2026-03-12": [
+          {
+            "id": 1773321916918,
+            "name": "CORE POWER ELITE CHOCOLATE HIGH PROTEIN MILK SHAKE",
+            "grams": 414,
+            "displayWeight": 14,
+            "displayUnit": "floz",
+            "calories": 232,
+            "protein": 41.8,
+            "carbs": 7,
+            "fat": 3.3
+          },
+          {
+            "id": 1773321981285,
+            "name": "Crunchy peanut butter Cliff Bar",
+            "grams": 68,
+            "displayWeight": 1,
+            "displayUnit": "1 bar (68 g)",
+            "calories": 260,
+            "protein": 10.9,
+            "carbs": 35.4,
+            "fat": 7.5
+          },
+          {
+            "id": 1773333177619,
+            "name": "Chicken Cantina Bowl 1 soft taco ",
+            "grams": 100,
+            "displayWeight": 100,
+            "displayUnit": "g",
+            "calories": 660,
+            "protein": 36,
+            "carbs": 66,
+            "fat": 27
+          },
+          {
+            "id": 1773337879987,
+            "name": "Bread",
+            "grams": 50,
+            "displayWeight": 50,
+            "displayUnit": "g",
+            "calories": 135,
+            "protein": 3.9,
+            "carbs": 25,
+            "fat": 1.9
+          },
+          {
+            "id": 1773341441392,
+            "name": "Reese's White Chocolate Peanut Butter Cups",
+            "grams": 39,
+            "displayWeight": 1,
+            "displayUnit": "39 g",
+            "calories": 211,
+            "protein": 4.3,
+            "carbs": 21.5,
+            "fat": 12
+          },
+          {
+            "id": 1773341459575,
+            "name": "Pink Slush",
+            "grams": 100,
+            "displayWeight": 100,
+            "displayUnit": "g",
+            "calories": 1,
+            "protein": 0,
+            "carbs": 0.8,
+            "fat": 0
+          },
+          {
+            "id": 1773363056395,
+            "name": "Artesano bakery bread Brioche Style",
+            "grams": 114,
+            "displayWeight": 2,
+            "displayUnit": "1 bun (57 g)",
+            "calories": 320,
+            "protein": 12,
+            "carbs": 58,
+            "fat": 4
+          },
+          {
+            "id": 1773370355598,
+            "name": "Smoked sausage",
+            "grams": 132,
+            "displayWeight": 2,
+            "displayUnit": "1 link (66 g)",
+            "calories": 420,
+            "protein": 18,
+            "carbs": 4,
+            "fat": 38
+          }
+        ],
+        "2026-03-11": [
+          {
+            "id": 1773270969972,
+            "name": "Honey Wheat",
+            "grams": 52,
+            "displayWeight": 2,
+            "displayUnit": "26g",
+            "calories": 140,
+            "protein": 6,
+            "carbs": 28,
+            "fat": 1
+          },
+          {
+            "id": 1773271018056,
+            "name": "Artesano bakery bread Brioche Style",
+            "grams": 114,
+            "displayWeight": 2,
+            "displayUnit": "1 bun (57 g)",
+            "calories": 320,
+            "protein": 12,
+            "carbs": 58,
+            "fat": 4
+          },
+          {
+            "id": 1773271043825,
+            "name": "Extra Large White Eggs",
+            "grams": 168,
+            "displayWeight": 3,
+            "displayUnit": "1 egg (56 g)",
+            "calories": 240,
+            "protein": 21,
+            "carbs": 0,
+            "fat": 15
+          },
+          {
+            "id": 1773271160101,
+            "name": "Whole Milk",
+            "grams": 236.6,
+            "displayWeight": 8,
+            "displayUnit": "floz",
+            "calories": 159,
+            "protein": 7.8,
+            "carbs": 11.8,
+            "fat": 7.8
+          },
+          {
+            "id": 1773271197300,
+            "name": "Chips Ahoy Original",
+            "grams": 44,
+            "displayWeight": 1,
+            "displayUnit": "1 pack (44 g)",
+            "calories": 220,
+            "protein": 2,
+            "carbs": 29,
+            "fat": 10
+          },
+          {
+            "id": 1773271222268,
+            "name": "DOUBLE CHEDDAR Smoked Sausage",
+            "grams": 132,
+            "displayWeight": 2,
+            "displayUnit": "1 link (66 g)",
+            "calories": 440,
+            "protein": 18,
+            "carbs": 4,
+            "fat": 38
+          },
+          {
+            "id": 1773287874174,
+            "name": "Texas Roadhouse ",
+            "grams": 100,
+            "displayWeight": 100,
+            "displayUnit": "g",
+            "calories": 660,
+            "protein": 78,
+            "carbs": 16,
+            "fat": 24
+          }
+        ],
+        "2026-03-10": [
+          {
+            "id": 1773199305870,
+            "name": "Test ",
+            "grams": 100,
+            "displayWeight": 100,
+            "displayUnit": "g",
+            "calories": 500,
+            "protein": 45,
+            "carbs": 44,
+            "fat": 67
+          }
+        ]
+      },
+      "weightLog": [
+        {
+          "date": "2026-03-10",
+          "time": "10:15 PM",
+          "ts": 1773198930753,
+          "weight": 265
+        },
+        {
+          "date": "2026-03-12",
+          "time": "12:42 PM",
+          "ts": 1773337367457,
+          "weight": 265
+        },
+        {
+          "date": "2026-03-15",
+          "time": "1:53 PM",
+          "ts": 1773600791762,
+          "weight": 260.8
+        },
+        {
+          "date": "2026-03-16",
+          "time": "5:18 AM",
+          "ts": 1773656296411,
+          "weight": 258.4
+        },
+        {
+          "date": "2026-03-19",
+          "time": "5:59 AM",
+          "ts": 1774004361486,
+          "weight": 254.2
+        },
+        {
+          "date": "2026-03-21",
+          "time": "12:53 PM",
+          "ts": 1774115616628,
+          "weight": 252
+        },
+        {
+          "date": "2026-03-22",
+          "time": "11:24 AM",
+          "ts": 1774196688167,
+          "weight": 250
+        }
+      ]
+    }
+  }
+}
